@@ -1848,8 +1848,6 @@ def finished_frame():
         finished_label.stop_thread()
         destroy_frame(finished_frame)
         app.quit()
-        for widget in app.winfo_children():
-            widget.destroy()
         app.quit()
         quit()
 
