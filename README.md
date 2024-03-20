@@ -1,6 +1,6 @@
 # MultiSpot
 
-MultiSpot is a Python application that combines the functionalities of my few Spotify-related projects into one tool. It allows Spotify users to manage their music in various ways, such as creating a playlist based on their top tracks, adding random tracks to their queue,  and more. The application uses the Spotify API to interact with user's Spotify data.
+MultiSpot is a Python application that combines the functionalities of my few Spotify-related projects into one tool. It allows Spotify users to do  various things, such as creating a playlist based on their top tracks, adding random tracks to their queue,  and more. The application uses the Spotify API.
 
 This project combines my following repositories:
 
