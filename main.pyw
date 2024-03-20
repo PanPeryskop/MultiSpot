@@ -13,7 +13,9 @@ import random
 import threading
 import os
 import re
+import ctypes
 
+ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 redirect_uri, client_id, client_secret = None, None, None
 scope = None
