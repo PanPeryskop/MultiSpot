@@ -9,6 +9,7 @@ This project combines my following repositories:
 - [Track-to-Playlist](https://github.com/PanPeryskop/Track-to-Playlist)
 - [Magic-Recommender](https://github.com/PanPeryskop/Magic-Recommender)
 
+In addition to the ficzurs provided by these projects, MultiSpot also includes some additional ficzurs.
 
 ## Resources used
 - Spotipy
