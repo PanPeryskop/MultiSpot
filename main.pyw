@@ -13,7 +13,7 @@ import random
 import threading
 import os
 import re
-import ctypes
+
 
 redirect_uri, client_id, client_secret = None, None, None
 scope = None
@@ -1862,8 +1862,6 @@ def finished_frame():
     quit_button.place(x=673, y=750)
     app.mainloop()
 
-
-ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
 config_file = 'config.sg'
 config = configparser.ConfigParser()
