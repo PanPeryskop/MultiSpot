@@ -1,0 +1,5 @@
+spotipy
+customtkinter
+Pillow
+requests
+configparser
