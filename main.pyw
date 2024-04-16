@@ -93,7 +93,10 @@ def do_random_activity(arg):
     playlist_id = '4MnsAykYyLNT98OylEr02Y'
     results = sp.playlist_tracks(playlist_id)
     tracks = results['items']
-    track = random.choice(tracks)
+
+    random_index = random.SystemRandom().randint(0, len(tracks) - 1)
+    track = tracks[random_index]
+
     track_uri = track['track']['uri']
     sp.start_playback(uris=[track_uri])
 
@@ -1629,7 +1632,9 @@ def add_random_track_to_queue():
         print("No tracks found.")
         return
 
-    random_track = random.choice(tracks)
+    random_index = random.SystemRandom().randint(0, len(tracks) - 1)
+    random_track = tracks[random_index]
+
     track_uri = random_track['uri']
     sp.add_to_queue(uri=track_uri)
 
