@@ -42,9 +42,9 @@ Before you can use MultiSpot, you need to create a Spotify Developer application
 ## Installation
 
 1. Make sure you have Python 3.9 or later installed. If not you can download it from the [official website](https://www.python.org/downloads/). Make sure to add python to PATH during installation.
-2. Clone the repository or download the ZIP file and extract it.
-2. Open the MultiSpot folder.
-3. Run setup.bat file to install required packages.
+2. Clone the repository (Do not download zip, it will not include necessary submodules). If you don't have Git installed, you can download it from the official website: [Git Official Website](https://git-scm.com/download/win)
+3. Open the MultiSpot folder.
+4. Run setup.bat file to install required packages.
     
 
 ## Usage
