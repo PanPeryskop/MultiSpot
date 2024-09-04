@@ -24,8 +24,7 @@ sp = None
 
 
 def end_all():
-    app.quit()
-    quit()
+    app.destroy()
 
 
 def my_profile():
