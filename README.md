@@ -50,9 +50,9 @@ Before you can use MultiSpot, you need to create a Spotify Developer application
 
    To clone the repository, follow these steps:
 
-   1. Create a new folder where you want to clone the repository.
-   2. Right-click on the folder and select "Open in Terminal" to open a terminal window.
-   3. In the terminal window, run the following command to clone the repository:
+   - Create a new folder where you want to clone the repository.
+   - Right-click on the folder and select "Open in Terminal" to open a terminal window.
+   - In the terminal window, run the following command to clone the repository:
 
       ```sh
       git clone https://github.com/PanPeryskop/MultiSpot
