@@ -25,6 +25,8 @@ sp = None
 
 def end_all():
     app.destroy()
+    app.quit()
+    exit()
 
 
 def my_profile():
@@ -1851,11 +1853,9 @@ def finished_frame():
         app.quit()
 
     def on_quit_button_click():
-        finished_label.stop_thread()
-        destroy_frame(finished_frame)
+        end_all()
         app.quit()
-        app.quit()
-        quit()
+        exit()
 
     continue_button = ctk.CTkButton(finished_frame, text="Continue", fg_color='#FFFFFF', bg_color='#000000',
                                     text_color="#000000", font=("Roboto", 20, "bold"), width=227, height=64,
