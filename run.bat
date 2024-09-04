@@ -11,10 +11,8 @@ set REMOTE_URL=https://github.com/PanPeryskop/MultiSpot
 
 git remote get-url origin >nul 2>&1
 if %errorlevel% neq 0 (
-    echo Setting the remote repository URL...
     git remote add origin %REMOTE_URL%
 ) else (
-    echo Verifying the remote repository URL...
     git remote set-url origin %REMOTE_URL%
 )
 
