@@ -48,10 +48,10 @@ Before you can use MultiSpot, you need to create a Spotify Developer application
     
 
 ## Usage
-1. Open folder in cmd and type python.exe main.py or open run.bat file in MultiSpot folder (If it doesn't work, modify bat file in notepad and change python.exe to direct path to your python.exe)
+1. Open the folder in cmd and type `python.exe main.py` or open the `run.bat` file in the MultiSpot folder (If it doesn't work, modify the bat file in notepad and change `python.exe` to the direct path to your `python.exe`). The `run.bat` file also checks for updates and automatically updates the program if a new version is available.
 2. The application will ask you to enter your `client_id`, `client_secret`, and `redirect_uri`. Enter the values from the Spotify Developer Dashboard.
-3. Select desired action from the menu.
+3. Select the desired action from the menu.
 
-*More detailed instruction are available in the [WIKI](https://github.com/PanPeryskop/MultiSpot/wiki/How-to-Use)*
+*More detailed instructions are available in the [WIKI](https://github.com/PanPeryskop/MultiSpot/wiki/How-to-Use)*
 
 Enjoy your music!
