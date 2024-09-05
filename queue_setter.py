@@ -10,7 +10,6 @@ import threading
 import os
 import configparser
 
-
 playlist_count = None
 current_url = None
 playlist_frame = None
