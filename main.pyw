@@ -14,6 +14,7 @@ import threading
 import os
 import re
 import ctypes
+import subprocess
 
 ctypes.windll.user32.ShowWindow(ctypes.windll.kernel32.GetConsoleWindow(), 0)
 
@@ -208,10 +209,7 @@ def process_input_queue_setter(u_input, frame):
     if u_input.isdigit():
         num = int(u_input)
         if 0 < num < 11:
-            # destroy_frame(frame)
-            # processing_frame(magic_playlist, int(input))
-            # to_destroy = ctk.CTkFrame(app, width=1000, height=1000, border_width=0, border_color='#000000')
-            # finished_frame()
+            
             restart(frame)
         else:
             error_label = ctk.CTkLabel(frame, text="Please enter a number between 1 and 10.", text_color="red", font=("Roboto", 40, "bold"))
@@ -223,36 +221,41 @@ def process_input_queue_setter(u_input, frame):
 
 
 def queue_setter(frame):
-    destroy_frame(frame)
-    queue_frame = ctk.CTkFrame(app, width=1000, height=1000, border_width=0, border_color='#000000', fg_color='#000000', bg_color='#000000')
-    queue_frame.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
-    top_frame = ctk.CTkFrame(queue_frame, width=1000, height=112, border_width=0, border_color='#000000')
-    top_frame.configure(fg_color='#000000', bg_color='#000000')
-    top_frame.pack_propagate(0)
-    top_frame.pack(side=ctk.TOP, fill=ctk.BOTH)
-    ms_label = ctk.CTkLabel(top_frame, text="MultiSpot", font=("Roboto", 48, "bold"), text_color="#FFFFFF")
-    ms_label.place(x=63, y=28)
-    buttons_text = ["My Profile", "How to Use", "Change Config", "Return"]
-    buttons_x = [355, 509, 677, 844]
-    buttons_command = [my_profile, how_to_use, lambda: change_config, lambda: restart(queue_frame)]
+    # destroy_frame(frame)
+    # queue_frame = ctk.CTkFrame(app, width=1000, height=1000, border_width=0, border_color='#000000', fg_color='#000000', bg_color='#000000')
+    # queue_frame.pack(side=ctk.TOP, fill=ctk.BOTH, expand=True)
+    # top_frame = ctk.CTkFrame(queue_frame, width=1000, height=112, border_width=0, border_color='#000000')
+    # top_frame.configure(fg_color='#000000', bg_color='#000000')
+    # top_frame.pack_propagate(0)
+    # top_frame.pack(side=ctk.TOP, fill=ctk.BOTH)
+    # ms_label = ctk.CTkLabel(top_frame, text="MultiSpot", font=("Roboto", 48, "bold"), text_color="#FFFFFF")
+    # ms_label.place(x=63, y=28)
+    # buttons_text = ["My Profile", "How to Use", "Change Config", "Return"]
+    # buttons_x = [355, 509, 677, 844]
+    # buttons_command = [my_profile, how_to_use, lambda: change_config, lambda: restart(queue_frame)]
 
-    for i, text in enumerate(buttons_text):
-        button = ctk.CTkButton(top_frame, text=text, fg_color='#000000', bg_color='#000000', border_width=0,
-                               text_color="#FFFFFF", font=("Roboto", 16), command=buttons_command[i])
-        button.place(x=buttons_x[i], y=44)
+    # for i, text in enumerate(buttons_text):
+    #     button = ctk.CTkButton(top_frame, text=text, fg_color='#000000', bg_color='#000000', border_width=0,
+    #                            text_color="#FFFFFF", font=("Roboto", 16), command=buttons_command[i])
+    #     button.place(x=buttons_x[i], y=44)
 
-    track_to_playlist_label = ctk.CTkLabel(queue_frame, text="How many playlists do you want to\nadd to queue?", font=("Roboto", 44, "bold"),
-                                           text_color="#FFFFFF", width=700, height=157)
-    track_to_playlist_label.place(x=150, y=209)
+    # track_to_playlist_label = ctk.CTkLabel(queue_frame, text="How many playlists do you want to\nadd to queue?", font=("Roboto", 44, "bold"),
+    #                                        text_color="#FFFFFF", width=700, height=157)
+    # track_to_playlist_label.place(x=150, y=209)
 
-    user_input = ctk.CTkEntry(queue_frame, fg_color='#FFFFFF', bg_color='#000000', border_width=0, text_color="#000000", font=("Roboto", 20), width=400, height=50)
-    user_input.place(x=300, y=400)
-    user_input.bind('<KeyRelease>', lambda event: update_slider(event, slider))
-    user_input.insert(0, 5)
-    slider = ctk.CTkSlider(queue_frame, from_=1, to=10, number_of_steps=9, command=lambda value: slider_activity(value, queue_frame, user_input), width=400, height=40, fg_color='#2e2e2e', bg_color='#000000', button_hover_color='#FFFFFF', button_color='#FFFFFF', progress_color='light grey')
-    slider.place(relx=0.5, rely=0.6, anchor='center')
-    submit_button = ctk.CTkButton(queue_frame, text="Submit", command=lambda: process_input_queue_setter(user_input.get(), queue_frame), width=227, height=64, fg_color='#FFFFFF', bg_color='#000000', border_width=0, text_color="#000000", font=("Roboto", 20, "bold"))
-    submit_button.place(x=386, y=750)
+    # user_input = ctk.CTkEntry(queue_frame, fg_color='#FFFFFF', bg_color='#000000', border_width=0, text_color="#000000", font=("Roboto", 20), width=400, height=50)
+    # user_input.place(x=300, y=400)
+    # user_input.bind('<KeyRelease>', lambda event: update_slider(event, slider))
+    # user_input.insert(0, 5)
+    # slider = ctk.CTkSlider(queue_frame, from_=1, to=10, number_of_steps=9, command=lambda value: slider_activity(value, queue_frame, user_input), width=400, height=40, fg_color='#2e2e2e', bg_color='#000000', button_hover_color='#FFFFFF', button_color='#FFFFFF', progress_color='light grey')
+    # slider.place(relx=0.5, rely=0.6, anchor='center')
+    # submit_button = ctk.CTkButton(queue_frame, text="Submit", command=lambda: process_input_queue_setter(user_input.get(), queue_frame), width=227, height=64, fg_color='#FFFFFF', bg_color='#000000', border_width=0, text_color="#000000", font=("Roboto", 20, "bold"))
+    # submit_button.place(x=386, y=750)
+    try:
+        result = subprocess.run(["python", "queue_setter.py"], check=True, capture_output=True, text=True)
+        print(result.stdout)  # Wyświetl output skryptu
+    except subprocess.CalledProcessError as e:
+        print(f"Error occurred: {e.stderr}")
     pass
 
 
@@ -1877,7 +1880,7 @@ app = ctk.CTk()
 app.title('MultiSpot')
 app.geometry('1000x1000+0+0')
 app.protocol('WM_DELETE_WINDOW', end_all)
-app.configure(background='#000000', bg='#000000', fg_color='#000000', bg_color='#000000')
+app.configure(background='#000000', bg='#000000', fg_color='#000000', bg_color='#000000')   
 app.resizable(False, False)
 
 
