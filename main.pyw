@@ -1735,10 +1735,10 @@ def get_config(start):
     client_id_label = ctk.CTkLabel(middle_frame, text="Enter your client id", font=("Roboto", 40), text_color="#FFFFFF", anchor='w')
     client_id_label.pack(padx=51, pady=(173-30, 0), anchor='w')
 
-    client_secret_label = ctk.CTkLabel(middle_frame, text="Enter your client id", font=("Roboto", 40), text_color="#FFFFFF", anchor='w')
+    client_secret_label = ctk.CTkLabel(middle_frame, text="Enter your client secret", font=("Roboto", 40), text_color="#FFFFFF", anchor='w')
     client_secret_label.pack(padx=51, pady=(125, 0), anchor='w')
 
-    client_id_label = ctk.CTkLabel(middle_frame, text="Enter your client id", font=("Roboto", 40), text_color="#FFFFFF", anchor='w')
+    client_id_label = ctk.CTkLabel(middle_frame, text="Enter your redirect url", font=("Roboto", 40), text_color="#FFFFFF", anchor='w')
     client_id_label.pack(padx=51, pady=(125, 0), anchor='w')
 
     client_id_entry = ctk.CTkEntry(middle_frame, fg_color='#FFFFFF', bg_color='#000000', border_width=0,
