@@ -1,0 +1,22 @@
+.radioGroup {
+  display: flex;
+  gap: 16px;
+}
+
+.radioLabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  .radioGroup {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .radioLabel {
+    padding: 8px 0;
+  }
+}

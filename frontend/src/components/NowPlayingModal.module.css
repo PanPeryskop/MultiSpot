@@ -1,0 +1,245 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal {
+  background: var(--surface);
+  border: 2px solid var(--black);
+  padding: 32px;
+  width: 90%;
+  max-width: 400px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  box-sizing: border-box;
+}
+
+.closeBtn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  color: var(--text-secondary);
+  background: var(--surface-2);
+  border: 2px solid var(--border-dim);
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.closeBtn:hover {
+  color: var(--white);
+  border-color: var(--white);
+  box-shadow: 2px 2px 0 var(--white);
+  transform: translate(-1px, -1px);
+}
+
+.artworkContainer {
+  width: 250px;
+  height: 250px;
+  margin-top: 16px;
+  position: relative;
+}
+
+.artworkContainer::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  right: -6px;
+  bottom: -6px;
+  background: var(--green);
+  z-index: -1;
+}
+
+.artwork {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 2px solid var(--black);
+  background: var(--surface-2);
+}
+
+.artworkPlaceholder {
+  width: 100%;
+  height: 100%;
+  background: var(--surface-2);
+  border: 2px solid var(--black);
+}
+
+.trackInfo {
+  text-align: center;
+  width: 100%;
+}
+
+.trackName {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.artistName {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.progressContainer {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.progressBar {
+  width: 100%;
+  height: 6px;
+  background: var(--border-dim);
+  border: 1px solid var(--black);
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--green);
+  transition: width 1s linear;
+}
+
+.timeRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  width: 100%;
+  margin-top: 8px;
+}
+
+.controlBtn {
+  color: var(--text);
+  background: transparent;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.controlBtn:hover:not(:disabled) {
+  color: var(--green);
+  transform: scale(1.1);
+}
+
+.controlBtn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.playPauseBtn {
+  width: 64px;
+  height: 64px;
+  background: var(--text);
+  color: var(--black);
+  border-radius: 50%;
+  border: 2px solid var(--black);
+}
+
+.playPauseBtn:hover:not(:disabled) {
+  color: var(--black);
+  background: var(--green);
+  transform: scale(1.05);
+}
+
+.emptyState {
+  color: var(--text-secondary);
+  font-size: 16px;
+  padding: 40px 0;
+}
+
+@media (max-width: 768px) {
+  .overlay {
+    align-items: flex-end;
+  }
+  
+  .modal {
+    width: 100%;
+    max-width: 100%;
+    height: 90dvh;
+    border-bottom: none;
+    padding: 24px;
+    box-shadow: none;
+    border-left: none;
+    border-right: none;
+    border-top: 2px solid var(--border-dim);
+    gap: 32px;
+    justify-content: flex-start;
+    animation: slideUp 0.25s ease-out;
+  }
+
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to { transform: translateY(0); }
+  }
+
+  .artworkContainer {
+    width: 280px;
+    height: 280px;
+    margin-top: 32px;
+  }
+  
+  .trackName {
+    font-size: 24px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .artistName {
+    font-size: 16px;
+  }
+
+  .controls {
+    gap: 32px;
+    margin-top: auto;
+    margin-bottom: 24px;
+  }
+
+  .playPauseBtn {
+    width: 72px;
+    height: 72px;
+  }
+}

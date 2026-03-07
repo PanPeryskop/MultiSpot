@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+spotipy
+python-dotenv
+starlette-session
+itsdangerous
+httpx
+requests

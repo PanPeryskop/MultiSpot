@@ -1,0 +1,225 @@
+.navbarDesktop {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  z-index: 100;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 8px;
+  background: var(--black);
+  border-bottom: 2px solid var(--border-dim);
+}
+
+.navSpacerDesktop { height: 56px; flex-shrink: 0; }
+
+.navbarMobileTop, .navbarMobileBottom, .navSpacerMobileTop { display: none; }
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  text-decoration: none;
+  flex-shrink: 0;
+  margin-right: 8px;
+}
+
+.logoMark {
+  width: 30px;
+  height: 30px;
+  background: var(--green);
+  color: var(--black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  border: 2px solid var(--green);
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: 1;
+  overflow: hidden;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-decoration: none;
+  transition: var(--transition);
+  border: 1px solid transparent;
+  white-space: nowrap;
+}
+.link:hover {
+  color: var(--text);
+  border-color: var(--border-dim);
+}
+.linkActive {
+  color: var(--text);
+  background: var(--surface-2);
+  border-color: var(--border-dim);
+  box-shadow: var(--shadow-sm);
+}
+
+.right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+  flex-shrink: 0;
+}
+
+.avatar {
+  width: 32px;
+  height: 32px;
+  border: 2px solid var(--border-dim);
+  cursor: pointer;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  transition: var(--transition);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.avatar:hover {
+  border-color: var(--green);
+  box-shadow: 2px 2px 0 var(--green);
+}
+.avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--black);
+  border: 2px solid var(--border-dim);
+  padding: 4px;
+  min-width: 200px;
+  box-shadow: 4px 4px 0 rgba(255,255,255,0.1);
+  animation: fadeIn 0.1s linear;
+  z-index: 1000;
+}
+
+.dropdownHeader {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-dim);
+  margin-bottom: 4px;
+}
+
+.dropdownName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  display: block;
+}
+
+.dropdownEmail {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.dropdownItem {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: var(--font);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  text-decoration: none;
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+.dropdownItem:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-dim);
+}
+
+@media (max-width: 768px) {
+  .navbarDesktop, .navSpacerDesktop {
+    display: none;
+  }
+
+  .navbarMobileTop {
+    display: flex;
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    height: 56px;
+    background: var(--black);
+    border-bottom: 1px solid var(--border-dim);
+    z-index: 999;
+  }
+
+  .nowPlayingDesktop { display: none; }
+  .logo span { display: none; }
+
+  .navbarMobileBottom {
+    display: flex;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    height: 60px;
+    background: var(--black);
+    border-top: 1px solid var(--border-dim);
+    z-index: 999;
+  }
+
+  .mobileLinks {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    height: 100%;
+    width: 100%;
+  }
+
+  .mobileLink {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    height: 100%;
+    color: var(--text-muted);
+    text-decoration: none;
+    transition: var(--transition);
+  }
+
+  .mobileLink:active {
+    background: var(--surface-2);
+  }
+
+  .mobileLinkActive {
+    color: var(--green);
+  }
+
+  .navSpacerMobileTop {
+    display: block;
+    height: 56px;
+  }
+}

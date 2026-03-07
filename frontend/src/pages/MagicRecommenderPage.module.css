@@ -1,0 +1,63 @@
+.tracksGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.trackCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: var(--surface-2);
+  border: 2px solid transparent;
+  transition: var(--transition);
+  text-decoration: none;
+}
+
+.trackCard:hover {
+  border-color: var(--green);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--green);
+}
+
+.trackImage {
+  width: 48px;
+  height: 48px;
+  border: 1px solid var(--border-dim);
+  object-fit: cover;
+}
+
+.trackImagePlaceholder {
+  width: 48px;
+  height: 48px;
+  background: var(--black);
+}
+
+.trackInfo {
+  min-width: 0;
+}
+
+.trackName {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+
+.trackArtist {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 768px) {
+  .tracksGrid {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+}

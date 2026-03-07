@@ -1,0 +1,53 @@
+.selectedList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.selectedItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--surface-2);
+  border: 2px solid var(--border-dim);
+}
+
+.itemInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.itemImage {
+  width: 32px;
+  height: 32px;
+  object-fit: cover;
+  border: 1px solid var(--border-dim);
+}
+
+.itemPlaceholder {
+  width: 32px;
+  height: 32px;
+  background: var(--black);
+  border: 1px solid var(--border-dim);
+}
+
+.itemName {
+  font-size: 13px;
+  font-weight: 700;
+  word-break: break-word;
+}
+
+.removeBtn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+  .selectedItem {
+    padding: 12px;
+  }
+}

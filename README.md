@@ -1,77 +1,58 @@
 # MultiSpot
 
-MultiSpot is a Python application that combines the functionalities of my few Spotify-related projects into one tool. It allows Spotify users to do  various things, such as creating a playlist based on their top tracks, adding random tracks to their queue,  and more. The application uses the Spotify API.
-
-This project combines my following repositories:
-
-- [SpotiQueue](https://github.com/PanPeryskop/SpotiQueue)
-- [RandomQueue](https://github.com/PanPeryskop/RandomQueue)
-- [Track-to-Playlist](https://github.com/PanPeryskop/Track-to-Playlist)
-- [Magic-Recommender](https://github.com/PanPeryskop/Magic-Recommender)
-
-In addition to the ficzurs provided by these projects, MultiSpot also includes some additional ficzurs.
-
-## Resources used
-- Spotipy
-- Customtkinter
-- [AnimatedGIF](https://github.com/olesk75/AnimatedGIF)
-- [DayNight theme](https://github.com/s-liwka/customtkinter-themes/tree/main/themes)
-
+Spotify toolkit — FastAPI (backend) + React/Vite (frontend).
 
 ## Features
 
-- Generate a playlist based on the user's top tracks
-- Generate a playlist based on track
-- Add several playlists to queue
-- Add random tracks to the user's queue
-- Shuffle user's and not user's playlists
+- **Random Hub** — inject random tracks from 6000+ genres into your queue or a new playlist
+- **Track to Playlist** — paste a track URL, get a recommendation playlist
+- **Queue Setter** — interleave multiple playlists into one queue
+- **Playlist Shuffler** — true-shuffle any playlist (recreates in random order)
+- **Magic Recommender** — generate a playlist from your top tracks
+- **Fusion Center** — search/paste tracks, artists, albums and fuse them into a custom playlist
+- **Stats Hub** — top tracks, artists, genre breakdown (by time period)
+- **Time Machine** — queue popular tracks from any decade (1950s–2020s)
+- **Now Playing** — live track display + skip in navbar
 
-## Before you install
+## Setup
 
-Before you can use MultiSpot, you need to create a Spotify Developer application to get your `client_id`, `client_secret`, and `redirect_uri`. Here's how you can do it:
+### 1. Spotify App
 
-1. Go to the [Spotify Developer Dashboard](https://developer.spotify.com/dashboard/).
-2. Log in with your Spotify account.
-3. Click on 'Create an App'.
-4. Fill in the 'Name', 'Description' and redirect_uri (I recommend using http://localhost:3000/) for your new app, then click 'Create'.
-5. On the next page, you will see your `client_id` and `client_secret`. You will need these to authenticate your application.
-6. Click on 'Edit Settings'.
-7. In the 'Redirect URIs' field, enter the URI where you want Spotify to redirect you after a successful login.
-8. Click 'Save'.
+Create an app at [developer.spotify.com/dashboard](https://developer.spotify.com/dashboard).
+Add redirect URI: `http://127.0.0.1:5173/callback`
+Add your email to registered users in app settings.
 
-## Installation
+### 2. Environment
 
-1. **Ensure Python 3.9 or later is installed**:
-   - If not, download it from the [official website](https://www.python.org/downloads/).
-   - Make sure to add Python to PATH during installation.
+Create `backend/.env`:
 
-2. **Clone the repository** (Do not download zip, it will not include necessary submodules):
-   - If you don't have Git installed, download it from the [Git Official Website](https://git-scm.com/download/win).
+```
+SPOTIFY_CLIENT_ID=...
+SPOTIFY_CLIENT_SECRET=...
+SPOTIFY_REDIRECT_URI=http://127.0.0.1:5173/callback
+SESSION_SECRET_KEY=<random string>
+FRONTEND_URL=http://localhost:5173
+```
 
-   To clone the repository, follow these steps:
+### 3. Install
 
-   - Create a new folder where you want to clone the repository.
-   - Right-click on the folder and select "Open in Terminal" to open a terminal window.
-   - In the terminal window, run the following command to clone the repository:
+```bash
+# Backend
+cd backend
+python -m venv venv
+venv\Scripts\activate        # Windows
+# source venv/bin/activate   # Linux
+pip install -r requirements.txt
 
-      ```sh
-      git clone https://github.com/PanPeryskop/MultiSpot
-      ```
+# Frontend
+cd frontend
+npm install
+npm run build
+```
 
-   This will download all the files and folders from the repository to your local machine.
+### 4. Run
 
-3. **Open the MultiSpot folder**.
-
-4. **Run the 'setup.bat' to install required packages**.
-    
-
-## Usage
-1. Open the folder in cmd and type `python.exe main.py` or open the `run.bat` file in the MultiSpot folder (If it doesn't work, modify the bat file in notepad and change `python.exe` to the direct path to your `python.exe`). The `run.bat` file also checks for updates and automatically updates the program if a new version is available.
-
-2. The application will ask you to enter your `client_id`, `client_secret`, and `redirect_uri`. Enter the values from the Spotify Developer Dashboard.
-
-3. Select the desired action from the menu.
-
-*More detailed instructions are available in the [WIKI](https://github.com/PanPeryskop/MultiSpot/wiki/How-to-Use)*
-
-Enjoy your music!
+```bash
+start_backend.bat
+start_frontend.bat
+```

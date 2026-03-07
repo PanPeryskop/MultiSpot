@@ -1,0 +1,201 @@
+.page {
+  padding: 88px 24px 40px;
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.header {
+  margin-bottom: 40px;
+  border-bottom: 4px solid var(--border);
+  padding-bottom: 24px;
+}
+
+.title {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.05em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  color: var(--text);
+}
+
+.subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  max-width: 600px;
+  line-height: 1.5;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+.sliderContainer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  height: 24px;
+}
+.slider::-webkit-slider-runnable-track {
+  height: 8px;
+  background: var(--surface-2);
+  border: 2px solid var(--border-dim);
+}
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  height: 24px;
+  width: 14px;
+  background: var(--green);
+  border: 2px solid var(--black);
+  margin-top: -10px;
+  cursor: grab;
+  box-shadow: 2px 2px 0 var(--border);
+  transition: transform 0.1s;
+}
+.slider::-webkit-slider-thumb:active { cursor: grabbing; transform: scale(1.1); }
+
+.slider::-moz-range-track {
+  height: 8px;
+  background: var(--surface-2);
+  border: 2px solid var(--border-dim);
+}
+.slider::-moz-range-thumb {
+  -moz-appearance: none;
+  height: 24px;
+  width: 14px;
+  background: var(--green);
+  border: 2px solid var(--black);
+  cursor: grab;
+  border-radius: 0;
+  box-shadow: 2px 2px 0 var(--border);
+  transition: transform 0.1s;
+}
+.slider::-moz-range-thumb:active { cursor: grabbing; transform: scale(1.1); }
+
+.sliderValue {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 60px;
+  text-align: right;
+  border-bottom: 4px solid var(--green);
+  padding-bottom: 4px;
+}
+
+.dnaGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.dnaBar {
+  background: var(--surface);
+  border: 2px solid var(--border-dim);
+  padding: 16px;
+  box-shadow: 4px 4px 0 rgba(255,255,255,0.05);
+}
+
+.dnaHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 12px;
+}
+
+.dnaTrack {
+  height: 24px;
+  background: var(--black);
+  border: 2px solid var(--border-dim);
+  position: relative;
+  overflow: hidden;
+}
+
+.dnaFill {
+  height: 100%;
+  background: var(--green);
+  transition: width 1s cubic-bezier(0.22, 1, 0.36, 1);
+  border-right: 2px solid var(--black);
+}
+
+.dnaFill.red { background: var(--red); }
+.dnaFill.yellow { background: var(--yellow); }
+.dnaFill.white { background: var(--white); }
+
+.result {
+  margin-top: 40px;
+  padding: 32px;
+  background: var(--surface);
+  border: 2px solid var(--green);
+  box-shadow: 6px 6px 0 var(--green);
+  text-align: center;
+}
+
+.resultTitle {
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--green);
+  margin-bottom: 24px;
+}
+
+@media (max-width: 768px) {
+  .page {
+    padding: 24px 16px 100px;
+    max-width: 100%;
+  }
+
+  .header {
+    margin-bottom: 24px;
+    padding-bottom: 16px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .sliderContainer {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .sliderValue {
+    text-align: center;
+    font-size: 20px;
+    padding-bottom: 8px;
+  }
+
+  .slider::-webkit-slider-thumb {
+    width: 24px;
+    height: 36px;
+    margin-top: -14px;
+  }
+  .slider::-moz-range-thumb {
+    width: 24px;
+    height: 36px;
+  }
+}
