@@ -1,5 +1,4 @@
 @echo off
 echo Starting MultiSpot Backend...
-call d:\projekty\MultiSpot\.venv\Scripts\activate.bat
-cd backend
-python -m uvicorn main:app --reload --port 8000
+cd /d "%~dp0backend"
+uv run uvicorn main:app --reload --port 8000

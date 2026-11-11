@@ -39,10 +39,7 @@ FRONTEND_URL=http://localhost:5173
 ```bash
 # Backend
 cd backend
-python -m venv venv
-venv\Scripts\activate        # Windows
-# source venv/bin/activate   # Linux
-pip install -r requirements.txt
+uv sync
 
 # Frontend
 cd frontend

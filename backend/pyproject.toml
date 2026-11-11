@@ -1,0 +1,14 @@
+[project]
+name = "multispot-backend"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "httpx",
+    "itsdangerous",
+    "python-dotenv",
+    "requests",
+    "spotipy",
+    "starlette-session",
+    "uvicorn[standard]",
+]
