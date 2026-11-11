@@ -1,18 +1,18 @@
 # MultiSpot
 
-Spotify toolkit — FastAPI (backend) + React/Vite (frontend).
+Spotify toolkit - FastAPI (backend) + React/Vite (frontend).
 
 ## Features
 
-- **Random Hub** — inject random tracks from 6000+ genres into your queue or a new playlist
-- **Track to Playlist** — paste a track URL, get a recommendation playlist
-- **Queue Setter** — interleave multiple playlists into one queue
-- **Playlist Shuffler** — true-shuffle any playlist (recreates in random order)
-- **Magic Recommender** — generate a playlist from your top tracks
-- **Fusion Center** — search/paste tracks, artists, albums and fuse them into a custom playlist
-- **Stats Hub** — top tracks, artists, genre breakdown (by time period)
-- **Time Machine** — queue popular tracks from any decade (1950s–2020s)
-- **Now Playing** — live track display + skip in navbar
+- **Random Hub** - inject random tracks from 6000+ genres into your queue or a new playlist
+- **Track to Playlist** - paste a track URL, get a recommendation playlist
+- **Queue Setter** - interleave multiple playlists into one queue
+- **Playlist Shuffler** - true-shuffle any playlist (recreates in random order)
+- **Magic Recommender** - generate a playlist from your top tracks
+- **Fusion Center** - search/paste tracks, artists, albums and fuse them into a custom playlist
+- **Stats Hub** - top tracks, artists, genre breakdown (by time period)
+- **Time Machine** - queue popular tracks from any decade (1950s-2020s)
+- **Now Playing** - live track display + skip in navbar
 
 ## Setup
 
