@@ -1,0 +1,97 @@
+.picker {
+  position: relative;
+}
+
+.inputRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
+
+.icon {
+  position: absolute;
+  left: 14px;
+  color: var(--text-secondary);
+  pointer-events: none;
+}
+
+.dice {
+  padding: 10px 14px;
+  flex-shrink: 0;
+}
+
+.menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 260px;
+  overflow-y: auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 12px;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  box-shadow: 4px 4px 0 var(--green);
+}
+
+.option {
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text);
+  border: 2px solid var(--border-dim);
+  background: var(--surface-2);
+  transition: var(--transition);
+}
+
+.option:hover {
+  border-color: var(--green);
+  color: var(--green);
+  transform: translate(-1px, -1px);
+  box-shadow: 2px 2px 0 var(--green);
+}
+
+.chosen {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 2px solid var(--green);
+  background: var(--surface);
+  box-shadow: 4px 4px 0 var(--green);
+}
+
+.chosenLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--black);
+  background: var(--green);
+  padding: 3px 6px;
+}
+
+.chosenName {
+  flex: 1;
+  font-weight: 700;
+  text-transform: uppercase;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clear {
+  color: var(--text);
+  display: flex;
+  padding: 4px;
+}
+
+.clear:hover {
+  color: var(--red);
+}

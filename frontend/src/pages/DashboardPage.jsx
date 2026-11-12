@@ -1,19 +1,19 @@
 import { useNavigate } from 'react-router-dom'
-import { Radio, Music2, ListMusic, Shuffle, Wand2, Star, Clock, BarChart2, Layers } from 'lucide-react'
+import { Radio, Music2, ListMusic, Shuffle, Wand2, Star, Clock, BarChart2, Layers, History } from 'lucide-react'
 import styles from './DashboardPage.module.css'
 
 const FEATURES = [
   {
     icon: Radio,
     title: 'Random Hub',
-    description: 'Discover new music by adding randomly selected tracks from across 6000+ genres to your queue or a custom playlist.',
+    description: 'Random tracks from 6000+ genres, or a whole station from one genre you pick. Into your queue or a new playlist.',
     to: '/random-hub',
     accent: '#1db954',
   },
   {
     icon: Music2,
-    title: 'Track to Playlist',
-    description: 'Enter any Spotify track URL and get a full playlist of recommendations built around it.',
+    title: 'Track Radio',
+    description: 'One track in, a full playlist out. Built from what listeners play right next to it.',
     to: '/track-to-playlist',
     accent: '#6c63ff',
   },
@@ -33,8 +33,8 @@ const FEATURES = [
   },
   {
     icon: Wand2,
-    title: 'Magic Recommender',
-    description: 'Instantly generate a new playlist based on your top Spotify tracks with one click.',
+    title: 'Magic Mix',
+    description: 'A fresh playlist from your taste, skipping the songs you already have on repeat.',
     to: '/magic-recommender',
     accent: '#00b4d8',
   },
@@ -48,9 +48,31 @@ const FEATURES = [
   {
     icon: Layers,
     title: 'Fusion Center',
-    description: 'Paste links to any tracks or artists and we will build a custom playlist fusing their DNA.',
+    description: 'Mix tracks, artists, albums and playlists as seeds and get one playlist that bridges them.',
     to: '/fusion-center',
     accent: '#00f5d4',
+  },
+  {
+    icon: Clock,
+    title: 'Time Machine',
+    description: 'Pick a decade and queue its hits straight into your player.',
+    to: '/time-machine',
+    accent: '#ffe346',
+  },
+  {
+    icon: BarChart2,
+    title: 'Track X-Ray',
+    description: 'Release info, album context, popularity and the artists behind any single track.',
+    to: '/track-stats',
+    accent: '#b8ff3c',
+  },
+  {
+    icon: History,
+    title: 'Rewind',
+    description: 'Save your recently played, monthly, yearly or all-time favourites as a playlist.',
+    to: '/rewind',
+    accent: '#9b8cff',
+    note: 'New',
   },
 ]
 

@@ -1,24 +1,38 @@
 import { useEffect, useState, useRef } from 'react'
 import { Play, Pause, SkipForward, SkipBack, X } from 'lucide-react'
+import { ToastContext } from '../toast'
+import { api } from '../api'
 import styles from './NowPlayingModal.module.css'
 
 export default function NowPlayingModal({ onClose }) {
   const [data, setData] = useState(null)
+  const [queue, setQueue] = useState([])
   const [loading, setLoading] = useState(false)
   const modalRef = useRef(null)
 
   const fetchState = () => {
-    fetch('/api/now-playing', { credentials: 'include' })
-      .then(r => r.json())
+    api('/api/now-playing')
       .then(d => setData(d.playing ? d : null))
       .catch(() => {})
   }
 
+  const fetchQueue = () => {
+    api('/api/queue')
+      .then(d => setQueue(d.queue || []))
+      .catch(() => setQueue([]))
+  }
+
   useEffect(() => {
     fetchState()
+    fetchQueue()
     const id = setInterval(fetchState, 3000)
     return () => clearInterval(id)
   }, [])
+
+  const trackId = data?.track?.id
+  useEffect(() => {
+    if (trackId) fetchQueue()
+  }, [trackId])
 
   useEffect(() => {
     const handler = (e) => {
@@ -38,8 +52,10 @@ export default function NowPlayingModal({ onClose }) {
   const handleAction = async (endpoint) => {
     setLoading(true)
     try {
-      await fetch(endpoint, { method: 'POST', credentials: 'include' })
+      await api(endpoint, { method: 'POST' })
       setTimeout(fetchState, 500)
+    } catch (e) {
+      ToastContext.push(e.message, 'error')
     } finally {
       setTimeout(() => setLoading(false), 800)
     }
@@ -57,7 +73,7 @@ export default function NowPlayingModal({ onClose }) {
   }
 
   const { track, is_playing } = data
-  const progress = Math.round((track.progress_ms / track.duration_ms) * 100)
+  const progress = track.duration_ms ? Math.min(100, Math.round((track.progress_ms / track.duration_ms) * 100)) : 0
 
   const formatTime = (ms) => {
     const totalSeconds = Math.floor(ms / 1000)
@@ -121,6 +137,21 @@ export default function NowPlayingModal({ onClose }) {
             <SkipForward size={28} />
           </button>
         </div>
+
+        {queue.length > 0 && (
+          <div className={styles.upNext}>
+            <div className={styles.upNextTitle}>Up next</div>
+            {queue.slice(0, 8).map((t, i) => (
+              <div key={`${t.id}-${i}`} className={styles.upNextRow} style={{ animationDelay: `${0.04 * i}s` }}>
+                {t.image ? <img src={t.image} alt="" /> : <div className={styles.upNextCover} />}
+                <div className={styles.upNextMeta}>
+                  <span className={styles.upNextName}>{t.name}</span>
+                  <span className={styles.upNextArtist}>{t.artists.join(', ')}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )

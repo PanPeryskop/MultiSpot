@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link2, Loader2, Plus, X, Search, CheckCircle2, ListMusic } from 'lucide-react'
-import { ToastContext } from '../App'
+import { Link2, Loader2, Plus, X, Search, CheckCircle2 } from 'lucide-react'
+import { ToastContext } from '../toast'
+import { api } from '../api'
+import ResultCard from '../components/ResultCard'
 import featureStyles from './FeaturePage.module.css'
 import styles from './FusionCenterPage.module.css'
 import PlaylistPicker from '../components/PlaylistPicker'
@@ -24,16 +26,10 @@ export default function FusionCenterPage() {
   const searchTimeout = useRef(null)
 
   useEffect(() => {
-    fetch('/api/fusion-suggestions', { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => {
-        setSuggestions(d)
-        setLoadingSuggestions(false)
-      })
-      .catch((e) => {
-        console.error('Failed to load suggestions:', e)
-        setLoadingSuggestions(false)
-      })
+    api('/api/fusion-suggestions')
+      .then(d => setSuggestions(d))
+      .catch(() => setSuggestions(null))
+      .finally(() => setLoadingSuggestions(false))
   }, [])
 
   const handleAddUrl = () => {
@@ -67,13 +63,9 @@ export default function FusionCenterPage() {
 
   const fetchSearchResults = async (query) => {
     try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(query)}&limit=10`, { credentials: 'include' })
-      const data = await res.json()
-      if (res.ok) {
-        setSearchResults(data)
-      }
+      setSearchResults(await api(`/api/search?q=${encodeURIComponent(query)}&limit=10`))
     } catch (err) {
-      console.error(err)
+      ToastContext.push(err.message, 'error')
     } finally {
       setIsSearching(false)
     }
@@ -107,18 +99,10 @@ export default function FusionCenterPage() {
     setLoading(true)
     setResult(null)
     try {
-      const res = await fetch('/api/fusion-center', {
+      const data = await api('/api/fusion-center', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          seed_urls: allUrlsToSeed,
-          playlist_name: playlistName,
-          track_count: trackCount
-        })
+        body: { seed_urls: allUrlsToSeed, playlist_name: playlistName, track_count: trackCount },
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.detail || 'Failed to generate playlist')
       setResult(data)
       ToastContext.push('Playlist generated successfully!', 'success')
     } catch (e) {
@@ -166,7 +150,7 @@ export default function FusionCenterPage() {
       <header className={featureStyles.header}>
         <h1 className={featureStyles.title}>Fusion Center</h1>
         <p className={featureStyles.subtitle}>
-          Search for tracks, artists, and albums, or paste specific Spotify links. We will extract their DNA and fuse a custom playlist bridging them together.
+          Collect tracks, artists, albums or playlists as seeds. We find what their listeners play around them and favour songs that connect several seeds at once.
         </p>
       </header>
 
@@ -215,7 +199,7 @@ export default function FusionCenterPage() {
          
          <div style={{ marginTop: 32 }}>
            <h3 style={{ fontSize: 18, fontWeight: 800, marginBottom: 12 }}>Your Playlists</h3>
-           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Select a playlist—we'll grab the first 20 tracks from it to use as DNA seeds.</p>
+           <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 12 }}>Pick a playlist and we use its main artists plus a couple of its tracks as seeds.</p>
            <PlaylistPicker 
              multi={true} 
              selected={selectedSeeds.filter(s => s.url?.includes('/playlist/'))} 
@@ -291,7 +275,7 @@ export default function FusionCenterPage() {
           <div className={featureStyles.sliderContainer}>
             <input
               type="range"
-              min="10" max="100" step="5"
+              min="5" max="100" step="5"
               value={trackCount}
               onChange={e => setTrackCount(Number(e.target.value))}
               className={featureStyles.slider}
@@ -307,15 +291,9 @@ export default function FusionCenterPage() {
       </div>
 
       {result && (
-        <div className={`${featureStyles.result} slide-up`}>
-          <h2 style={{ fontSize: 24, fontWeight: 800, marginBottom: 8 }}>Success!</h2>
-          <p style={{ color: 'var(--text-secondary)', marginBottom: 24 }}>
-            Brewed a custom fusion playlist with {result.track_count} tracks.
-          </p>
-          <a href={result.playlist_url} target="_blank" rel="noreferrer" className="btn btn-primary">
-            Open in Spotify
-          </a>
-        </div>
+        <ResultCard title="Fusion Complete" tracks={result.tracks} total={result.track_count} url={result.playlist_url} accent="#00f5d4">
+          Brewed <strong>{result.track_count}</strong> tracks from your seeds.
+        </ResultCard>
       )}
     </main>
   )

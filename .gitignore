@@ -24,6 +24,8 @@ frontend/build/
 .DS_Store
 Thumbs.db
 desktop.ini
+.claude
+.claude/
 
 # PM2
 .pm2/
@@ -33,5 +35,9 @@ desktop.ini
 logs/
 
 # Spotify cache
+.cache
 .cache-*
 .spotify_cache
+
+# Deploy archive
+multispot-deploy.tar.gz

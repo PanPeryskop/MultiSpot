@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, ChevronRight, Check } from 'lucide-react'
+import { api } from '../api'
 import styles from './PlaylistPicker.module.css'
 
 export default function PlaylistPicker({ multi = false, selected = [], onChange }) {
@@ -7,14 +8,21 @@ export default function PlaylistPicker({ multi = false, selected = [], onChange 
   const [total, setTotal] = useState(0)
   const [offset, setOffset] = useState(0)
   const [loading, setLoading] = useState(true)
-  const limit = 5
+  const [error, setError] = useState(null)
+  const limit = 8
 
   useEffect(() => {
-    setLoading(true)
-    fetch(`/api/playlists?limit=${limit}&offset=${offset}`, { credentials: 'include' })
-      .then(r => r.json())
-      .then(d => { setPlaylists(d.playlists); setTotal(d.total) })
-      .finally(() => setLoading(false))
+    let alive = true
+    api(`/api/playlists?limit=${limit}&offset=${offset}`)
+      .then(d => {
+        if (!alive) return
+        setError(null)
+        setPlaylists(d.playlists || [])
+        setTotal(d.total || 0)
+      })
+      .catch(e => alive && setError(e.message))
+      .finally(() => alive && setLoading(false))
+    return () => { alive = false }
   }, [offset])
 
   const toggle = (pl) => {
@@ -43,6 +51,8 @@ export default function PlaylistPicker({ multi = false, selected = [], onChange 
       <div className={styles.list}>
         {loading ? (
           <div className={styles.status}>Loading...</div>
+        ) : error ? (
+          <div className={styles.status}>{error}</div>
         ) : playlists.length === 0 ? (
           <div className={styles.status}>No playlists found</div>
         ) : (
@@ -74,10 +84,10 @@ export default function PlaylistPicker({ multi = false, selected = [], onChange 
         <div className={styles.controls}>
           <div className={styles.pages}>PAGE {page + 1} OF {pages}</div>
           <div className={styles.buttons}>
-            <button className="btn btn-icon" onClick={() => setOffset(o => o - limit)} disabled={page === 0}>
+            <button className="btn btn-icon" onClick={() => { setLoading(true); setOffset(o => o - limit) }} disabled={page === 0}>
               <ChevronLeft size={18} />
             </button>
-            <button className="btn btn-icon" onClick={() => setOffset(o => o + limit)} disabled={page >= pages - 1}>
+            <button className="btn btn-icon" onClick={() => { setLoading(true); setOffset(o => o + limit) }} disabled={page >= pages - 1}>
               <ChevronRight size={18} />
             </button>
           </div>

@@ -5,11 +5,13 @@ export default function NowPlaying() {
   const [data, setData] = useState(null)
 
   useEffect(() => {
-    const fetch_ = () =>
+    const fetch_ = () => {
+      if (document.hidden) return
       fetch('/api/now-playing', { credentials: 'include' })
-        .then(r => r.json())
+        .then(r => (r.ok ? r.json() : { playing: false }))
         .then(d => setData(d.playing ? d : null))
         .catch(() => {})
+    }
 
     fetch_()
     const id = setInterval(fetch_, 8000)
@@ -19,7 +21,7 @@ export default function NowPlaying() {
   if (!data) return null
 
   const { track } = data
-  const progress = Math.round((track.progress_ms / track.duration_ms) * 100)
+  const progress = track.duration_ms ? Math.min(100, Math.round((track.progress_ms / track.duration_ms) * 100)) : 0
 
   return (
     <div className={styles.container}>

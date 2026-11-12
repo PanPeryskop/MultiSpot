@@ -4,19 +4,19 @@ import { Loader2 } from 'lucide-react'
 
 export default function CallbackPage() {
   const navigate = useNavigate()
-  const [error, setError] = useState(null)
+  const [error, setError] = useState(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('error')) return params.get('error')
+    if (!params.get('code') || !params.get('state')) return 'Missing code or state from Spotify'
+    return null
+  })
   const hasCalled = useRef(false)
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
     const code = params.get('code')
     const state = params.get('state')
-    const err = params.get('error')
-
-    if (err || !code || !state) {
-      setError(err || 'Missing code or state from Spotify')
-      return
-    }
+    if (!code || !state || params.get('error')) return
 
     if (hasCalled.current) return
     hasCalled.current = true
@@ -28,21 +28,21 @@ export default function CallbackPage() {
       body: JSON.stringify({ code, state }),
     })
       .then(r => r.json())
-      .then(d => {
+      .then(async d => {
         if (d.authenticated) {
-          if (window._refreshAuth) window._refreshAuth()
+          if (window._refreshAuth) await window._refreshAuth()
           navigate('/dashboard', { replace: true })
         } else {
           setError(d.detail || 'Authentication failed')
         }
       })
       .catch(() => setError('Failed to connect to server'))
-  }, [])
+  }, [navigate])
 
   if (error) {
     return (
       <main style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-        <p style={{ color: 'var(--color-error)', fontWeight: 600 }}>Login failed: {error}</p>
+        <p style={{ color: 'var(--red)', fontWeight: 600 }}>Login failed: {error}</p>
         <a href="/" className="btn btn-ghost">Go back</a>
       </main>
     )
@@ -50,8 +50,8 @@ export default function CallbackPage() {
 
   return (
     <main style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <Loader2 size={32} className="spin" style={{ color: 'var(--color-green)' }} />
-      <p style={{ color: 'var(--color-text-secondary)' }}>Logging you in…</p>
+      <Loader2 size={32} className="spin" style={{ color: 'var(--green)' }} />
+      <p style={{ color: 'var(--text-secondary)' }}>Logging you in…</p>
     </main>
   )
 }

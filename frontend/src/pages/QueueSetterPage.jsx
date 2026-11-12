@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ListMusic, Loader2, X } from 'lucide-react'
-import { ToastContext } from '../App'
+import { ToastContext } from '../toast'
+import { api } from '../api'
 import PlaylistPicker from '../components/PlaylistPicker'
 import featureStyles from './FeaturePage.module.css'
 import styles from './QueueSetterPage.module.css'
@@ -28,14 +29,7 @@ export default function QueueSetterPage() {
     }
 
     try {
-      const r = await fetch('/api/queue-setter', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playlist_urls: urlsToQueue }),
-      })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.detail || 'Something went wrong')
+      const d = await api('/api/queue-setter', { method: 'POST', body: { playlist_urls: urlsToQueue } })
       setResult(d)
       ToastContext.push(`Queued ${d.queued} tracks!`, 'success')
       setSelected([])
@@ -53,7 +47,7 @@ export default function QueueSetterPage() {
     <main className={`${featureStyles.page} page-enter`}>
       <header className={featureStyles.header}>
         <h1 className={featureStyles.title}>Queue Setter</h1>
-        <p className={featureStyles.subtitle}>Select multiple playlists. We'll interleave them, alternating tracks from each playlist, and inject them into your queue.</p>
+        <p className={featureStyles.subtitle}>Select playlists in the order you want them. We alternate one track from each (up to 100 per playlist) and inject them into your queue. Needs an active Spotify device.</p>
       </header>
 
       <div className={featureStyles.form}>

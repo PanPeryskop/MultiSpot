@@ -10,7 +10,7 @@ export default function LoginPage() {
       </div>
       <h1 className={styles.title}>Your Spotify.<br />Supercharged.</h1>
       <p className={styles.subtitle}>
-        Random queues, playlist tools, magic recommendations — <br />
+        Random queues, playlist tools, magic recommendations - <br />
         all in one place. Log in to get started.
       </p>
       <a href="/auth/login" className={`btn btn-primary ${styles.loginBtn}`}>

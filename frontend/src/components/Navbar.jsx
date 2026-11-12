@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Music2, Shuffle, ListMusic, Wand2, Radio, LayoutGrid,
-  LogOut, ChevronRight, SkipForward
+  Music2, Shuffle, ListMusic, Wand2, Radio, LayoutGrid, LogOut, History
 } from 'lucide-react'
 import NowPlaying from './NowPlaying'
 import NowPlayingModal from './NowPlayingModal'
@@ -15,23 +14,30 @@ const NAV_LINKS = [
   { to: '/random-hub', icon: Shuffle, label: 'Random Hub' },
   { to: '/time-machine', icon: Music2, label: 'Time Machine' },
   { to: '/queue-setter', icon: ListMusic, label: 'Queue Setter' },
+  { to: '/rewind', icon: History, label: 'Rewind' },
 ]
 
 export default function Navbar({ user }) {
   const location = useLocation()
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [menuPath, setMenuPath] = useState(null)
+  const menuOpen = menuPath === location.pathname
+  const setMenuOpen = (value) => {
+    const next = typeof value === 'function' ? value(menuOpen) : value
+    setMenuPath(next ? location.pathname : null)
+  }
   const [showPlayer, setShowPlayer] = useState(false)
   const ref = useRef(null)
+  const mobileRef = useRef(null)
 
   useEffect(() => {
     const handler = (e) => {
-      if (ref.current && !ref.current.contains(e.target)) setMenuOpen(false)
+      const inside = [ref.current, mobileRef.current].some(node => node && node.contains(e.target))
+      if (!inside) setMenuPath(null)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  useEffect(() => setMenuOpen(false), [location.pathname])
 
   const handleLogout = async () => {
     try {
@@ -102,7 +108,7 @@ export default function Navbar({ user }) {
               <NowPlaying />
             </button>
           </div>
-          <div className={styles.right} ref={ref}>
+          <div className={styles.right} ref={mobileRef}>
             <button className={styles.avatar} onClick={() => setMenuOpen(v => !v)}>
               {user.image ? <img src={user.image} alt={user.display_name} /> : <span>{(user.display_name || 'U')[0].toUpperCase()}</span>}
             </button>

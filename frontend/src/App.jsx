@@ -12,21 +12,24 @@ import TimeMachinePage from './pages/TimeMachinePage'
 import TrackStatsPage from './pages/TrackStatsPage'
 import StatsPage from './pages/StatsPage'
 import FusionCenterPage from './pages/FusionCenterPage'
+import RewindPage from './pages/RewindPage'
 import Navbar from './components/Navbar'
 import Toast from './components/Toast'
+import { ToastContext } from './toast'
 
-export const ToastContext = window._toastCtx = { push: null }
 
 function App() {
   const [user, setUser] = useState(undefined)
   const [toast, setToast] = useState(null)
 
-  ToastContext.push = (msg, type = 'info') => {
-    setToast({ msg, type, key: Date.now() })
-  }
+  useEffect(() => {
+    ToastContext.push = (msg, type = 'info') => {
+      setToast({ msg, type, key: Date.now() })
+    }
+  }, [])
 
   const checkAuth = useCallback(() => {
-    fetch('/auth/me', { credentials: 'include' })
+    return fetch('/auth/me', { credentials: 'include' })
       .then(r => r.json())
       .then(d => setUser(d.authenticated ? d : null))
       .catch(() => setUser(null))
@@ -65,7 +68,9 @@ function App() {
         <Route path="/time-machine" element={authed(<TimeMachinePage />)} />
         <Route path="/track-stats" element={authed(<TrackStatsPage />)} />
         <Route path="/stats" element={authed(<StatsPage />)} />
+        <Route path="/rewind" element={authed(<RewindPage />)} />
         <Route path="/callback" element={<CallbackPage />} />
+        <Route path="*" element={<Navigate to={user ? '/dashboard' : '/'} replace />} />
       </Routes>
       {toast && <Toast key={toast.key} message={toast.msg} type={toast.type} />}
     </BrowserRouter>

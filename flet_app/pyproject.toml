@@ -1,0 +1,43 @@
+[project]
+name = "multispot"
+version = "1.0.0"
+description = "MultiSpot mobile app"
+requires-python = ">=3.12"
+dependencies = [
+    "flet>=1.1.2",
+    "flet-webview>=1.1.2",
+    "httpx>=0.28.1",
+]
+
+[tool.flet]
+org = "dev.multispot"
+product = "MultiSpot"
+company = "MultiSpot"
+copyright = "MultiSpot"
+icon_background = "#000000"
+
+[tool.flet.app]
+path = "src"
+
+[tool.flet.splash]
+color = "#000000"
+dark_color = "#000000"
+
+[tool.flet.android.splash]
+icon_fit = "contain"
+
+[tool.flet.boot_screen]
+name = "flet"
+
+[tool.flet.boot_screen.flet]
+theme_mode = "dark"
+bgcolor_light = "#000000"
+bgcolor_dark = "#000000"
+spinner_color_light = "#1DB954"
+spinner_color_dark = "#1DB954"
+spinner_size = 26
+text_color_light = "#FFFFFF"
+text_color_dark = "#FFFFFF"
+prepare_message = "WARMING UP THE DECKS"
+startup_message = "MULTISPOT"
+fade_out_duration = 350

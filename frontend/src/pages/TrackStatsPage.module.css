@@ -80,6 +80,180 @@
   gap: 8px;
 }
 
+.meter {
+  height: 8px;
+  background: var(--black);
+  border: 2px solid var(--border-dim);
+  margin-top: 14px;
+  overflow: hidden;
+}
+
+.meterFill {
+  height: 100%;
+  width: 0;
+  animation: grow 1.1s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes grow {
+  from { width: 0; }
+}
+
+.openLink {
+  margin-top: 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--green);
+  align-self: flex-start;
+}
+
+.albumName {
+  font-size: 15px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.facts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.facts span {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.muted {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.tracklist {
+  list-style: none;
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  border-top: 2px solid var(--border-dim);
+  padding-top: 8px;
+}
+
+.tracklist li {
+  display: flex;
+  gap: 10px;
+  padding: 5px 6px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.trackNo {
+  width: 20px;
+  flex-shrink: 0;
+  color: var(--text-muted);
+  font-weight: 700;
+}
+
+.trackTitle {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackLen {
+  flex-shrink: 0;
+}
+
+.currentTrack {
+  background: var(--green);
+  color: var(--black) !important;
+  font-weight: 700;
+}
+
+.currentTrack .trackNo {
+  color: var(--black);
+}
+
+.artist {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.artistHead {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.artistImage {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: var(--black);
+  border: 2px solid var(--border-dim);
+  flex-shrink: 0;
+}
+
+.artistName {
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.artistName:hover {
+  color: var(--green);
+}
+
+.artistStats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.topTracks {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.topTrack {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 6px;
+  font-size: 12px;
+  border: 2px solid transparent;
+  transition: var(--transition);
+}
+
+.topTrack:hover {
+  border-color: var(--green);
+}
+
+.topTrack img {
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+}
+
 @media (max-width: 768px) {
   .mainCard {
     padding: 16px;

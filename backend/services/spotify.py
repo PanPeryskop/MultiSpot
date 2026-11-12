@@ -1,504 +1,656 @@
-import spotipy, os, random, re, json, time
-from spotipy.oauth2 import SpotifyOAuth
-from dotenv import load_dotenv
+import asyncio
+import json
+import os
+import random
+import re
 
-load_dotenv()
+from services.client import Spotify, SpotifyError, track_of
+from services.mix import MixEngine, Seed, is_song, seed_from_album, seed_from_artist, seed_from_track, song_key
 
 GENRES_PATH = os.path.join(os.path.dirname(__file__), "..", "genres.json")
 with open(GENRES_PATH, "r", encoding="utf-8") as f:
     GENRES: list[str] = json.load(f)
 
-def get_spotify(token_info: dict) -> tuple[spotipy.Spotify, dict]:
-    am = SpotifyOAuth(
-        client_id=os.getenv("SPOTIFY_CLIENT_ID"),
-        client_secret=os.getenv("SPOTIFY_CLIENT_SECRET"),
-        redirect_uri=os.getenv("SPOTIFY_REDIRECT_URI"),
-        cache_handler=None,
-        open_browser=False,
+LINK = re.compile(r"(?:open\.spotify\.com/(?:intl-[a-z]{2}(?:-[a-z]{2})?/)?(?:embed/)?|spotify:)(track|artist|album|playlist)[/:]([A-Za-z0-9]{22})")
+BARE_ID = re.compile(r"^[A-Za-z0-9]{22}$")
+DESCRIPTION = "Made with MultiSpot"
+def parse_link(value: str, expected: str | None = None) -> tuple[str, str]:
+    value = (value or "").strip()
+    match = LINK.search(value)
+    if match:
+        kind, sid = match.groups()
+    elif expected and BARE_ID.match(value):
+        kind, sid = expected, value
+    else:
+        raise ValueError(f"Not a valid Spotify {expected or ''} link".replace("  ", " "))
+    if expected and kind != expected:
+        raise ValueError(f"Expected a Spotify {expected} link, got a {kind} link")
+    return kind, sid
+
+
+def image_of(obj: dict | None, prefer: int = 0) -> str | None:
+    images = (obj or {}).get("images") or []
+    if not images:
+        return None
+    return images[min(prefer, len(images) - 1)].get("url")
+
+
+def track_card(t: dict) -> dict:
+    return {
+        "id": t.get("id"),
+        "name": t.get("name"),
+        "artists": [a.get("name") for a in t.get("artists") or []],
+        "album": (t.get("album") or {}).get("name"),
+        "image": image_of(t.get("album")),
+        "url": (t.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/track/{t.get('id')}",
+        "uri": t.get("uri") or f"spotify:track:{t.get('id')}",
+        "popularity": t.get("popularity"),
+        "duration_ms": t.get("duration_ms") or 0,
+        "explicit": bool(t.get("explicit")),
+    }
+
+
+def artist_card(a: dict) -> dict:
+    return {
+        "id": a.get("id"),
+        "name": a.get("name"),
+        "image": image_of(a),
+        "url": (a.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/artist/{a.get('id')}",
+        "followers": (a.get("followers") or {}).get("total"),
+        "popularity": a.get("popularity"),
+        "genres": a.get("genres") or [],
+    }
+
+
+def album_card(a: dict) -> dict:
+    return {
+        "id": a.get("id"),
+        "name": a.get("name"),
+        "artists": [x.get("name") for x in a.get("artists") or []],
+        "image": image_of(a),
+        "url": (a.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/album/{a.get('id')}",
+        "release_date": a.get("release_date"),
+    }
+
+
+def uri_of(t: dict) -> str:
+    return t.get("uri") or f"spotify:track:{t['id']}"
+
+
+async def _save_playlist(sp: Spotify, name: str, tracks: list[dict], fallback_name: str) -> dict:
+    if not tracks:
+        raise ValueError("Spotify returned no usable tracks for these seeds. Try different ones.")
+    playlist = await sp.create_playlist((name or "").strip() or fallback_name, DESCRIPTION)
+    await sp.add_to_playlist(playlist["id"], [uri_of(t) for t in tracks])
+    return {
+        "playlist_url": (playlist.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/playlist/{playlist['id']}",
+        "playlist_id": playlist["id"],
+        "track_count": len(tracks),
+        "tracks": [track_card(t) for t in tracks[:12]],
+    }
+
+
+async def _queue_tracks(sp: Spotify, tracks: list[dict]) -> tuple[int, int]:
+    added = errors = 0
+    for t in tracks:
+        try:
+            await sp.queue(uri_of(t))
+            added += 1
+        except SpotifyError as exc:
+            if exc.status in (401, 403) or "device" in exc.message.lower():
+                if added == 0:
+                    raise
+                errors += len(tracks) - added - errors
+                break
+            errors += 1
+    return added, errors
+
+
+def find_genres(query: str, limit: int = 30) -> list[str]:
+    q = (query or "").strip().lower()
+    if not q:
+        return random.sample(GENRES[:400], min(limit, 400))
+    starts = [g for g in GENRES if g.startswith(q)]
+    contains = [g for g in GENRES if q in g and not g.startswith(q)]
+    return (starts + contains)[:limit]
+
+
+async def _single_genre_tracks(sp: Spotify, genre: str, count: int) -> list[dict]:
+    offsets = [0, 50, 100, 150, 200, 300, 400, 500]
+    pages = await asyncio.gather(
+        *(sp.search(f'genre:"{genre}"', "track", limit=50, offset=o) for o in offsets[: max(2, min(len(offsets), count // 20 + 2))]),
+        return_exceptions=True,
     )
-    refreshed = am.validate_token(token_info)
-    token = refreshed if refreshed else token_info
-    return spotipy.Spotify(auth=token["access_token"]), token
-
-def _get_random_tracks(sp: spotipy.Spotify, count: int) -> list[str]:
-    track_ids = []
-    max_attempts = count * 5
-    attempts = 0
-    
-    while len(track_ids) < count and attempts < max_attempts:
-        attempts += 1
-        genre = random.choice(GENRES)
-        try:
-            results = sp.search(q=f'genre:"{genre}"', type="track", limit=50)
-            tracks = results["tracks"]["items"]
-            if not tracks:
-                continue
-            track = random.choice(tracks)
-            if track["id"] not in track_ids:
-                track_ids.append(track["id"])
-        except spotipy.exceptions.SpotifyException as e:
-            if e.http_status == 429:
-                time.sleep(int(e.headers.get("Retry-After", 1)))
-                
-    return track_ids
-
-def add_random_tracks_to_queue(token_info: dict, count: int) -> dict:
-    sp, token = get_spotify(token_info)
-    track_ids = _get_random_tracks(sp, count)
-    
-    added = 0
-    errors = 0
-    for tid in track_ids:
-        try:
-            sp.add_to_queue(uri=f"spotify:track:{tid}")
-            added += 1
-        except spotipy.exceptions.SpotifyException as e:
-            if e.http_status == 429:
-                time.sleep(int(e.headers.get("Retry-After", 1)))
-            errors += 1
-            
-    return {"added": added, "errors": errors, "token": token}
-
-def create_random_playlist(token_info: dict, count: int, playlist_name: str) -> dict:
-    sp, token = get_spotify(token_info)
-    track_ids = _get_random_tracks(sp, count)
-    
-    if not track_ids:
-        raise ValueError("Could not find any random tracks.")
-        
-    user_id = sp.me()["id"]
-    playlist = sp.user_playlist_create(user_id, playlist_name)
-    sp.playlist_add_items(playlist["id"], track_ids)
-    
-    return {"playlist_url": playlist["external_urls"]["spotify"], "track_count": len(track_ids), "token": token}
-
-def create_playlist_from_track(token_info: dict, track_url: str, playlist_name: str) -> dict:
-    sp, token = get_spotify(token_info)
-    track_id = track_url.split("/")[-1].split("?")[0]
-    track = sp.track(track_id)
-    
-    artist_id = track["artists"][0]["id"]
-    try:
-        related = sp.artist_related_artists(artist_id)
-        artist_ids = [artist_id] + [a["id"] for a in related["artists"][:4]]
-    except spotipy.exceptions.SpotifyException:
-        artist_ids = [artist_id]
-        
-    all_uris = []
-    for aid in artist_ids:
-        try:
-            top_tracks = sp.artist_top_tracks(aid)
-            for t in top_tracks["tracks"][:10]:
-                if t["uri"] not in all_uris:
-                    all_uris.append(t["uri"])
-        except spotipy.exceptions.SpotifyException:
+    pool: dict[tuple[str, str], dict] = {}
+    for page in pages:
+        if isinstance(page, BaseException):
             continue
-                
-    random.shuffle(all_uris)
-    all_uris = all_uris[:50]
-    
-    user_id = sp.me()["id"]
-    playlist = sp.user_playlist_create(user_id, playlist_name, public=True)
-    sp.playlist_add_items(playlist["id"], all_uris)
-    return {"playlist_url": playlist["external_urls"]["spotify"], "track_count": len(all_uris), "token": token}
-
-def _add_to_queue_with_retry(sp: spotipy.Spotify, track_id: str):
-    while True:
-        try:
-            sp.add_to_queue(track_id)
+        for t in page:
+            if is_song(t):
+                pool.setdefault(song_key(t), t)
+    tracks = list(pool.values())
+    random.shuffle(tracks)
+    per_artist: dict[str, int] = {}
+    out = []
+    for t in tracks:
+        lead = (t.get("artists") or [{}])[0].get("id", "")
+        if per_artist.get(lead, 0) >= 3:
+            continue
+        per_artist[lead] = per_artist.get(lead, 0) + 1
+        out.append(t)
+        if len(out) >= count:
             break
-        except spotipy.exceptions.SpotifyException as e:
-            if e.http_status == 429:
-                time.sleep(int(e.headers.get("Retry-After", 1)))
-            else:
-                raise
+    if len(out) < count:
+        engine = MixEngine(sp, playlists_per_seed=8, max_playlists=16)
+        more = await engine.build([Seed([genre, f"{genre} mix", f"best {genre}"])], count - len(out), exclude={t["id"] for t in out}, seed_share=0)
+        out += more
+    return out[:count]
 
-def set_interleaved_queue(token_info: dict, playlist_urls: list[str]) -> dict:
-    sp, token = get_spotify(token_info)
-    playlist_tracks = []
+
+async def _random_genre_tracks(sp: Spotify, count: int, genre: str | None = None) -> list[dict]:
+    if genre:
+        return await _single_genre_tracks(sp, genre, count)
+    picked: list[dict] = []
+    seen: set[str] = set()
+    keys: set[tuple[str, str]] = set()
+    pool = list(GENRES)
+    random.shuffle(pool)
+
+    async def one(genre: str) -> list[dict]:
+        offset = random.choice((0, 0, 0, 50, 100, 150))
+        try:
+            found = await sp.search(f'genre:"{genre}"', "track", limit=50, offset=offset)
+            if not found and offset:
+                found = await sp.search(f'genre:"{genre}"', "track", limit=50)
+        except SpotifyError:
+            return []
+        return found
+
+    rounds = 0
+    while len(picked) < count and pool and rounds < 6:
+        rounds += 1
+        batch = [pool.pop() for _ in range(min(len(pool), max(4, int((count - len(picked)) * 1.5))))]
+        results = await asyncio.gather(*(one(g) for g in batch))
+        for found in results:
+            if len(picked) >= count:
+                break
+            random.shuffle(found)
+            for t in found:
+                if is_song(t) and t["id"] not in seen and song_key(t) not in keys:
+                    seen.add(t["id"])
+                    keys.add(song_key(t))
+                    picked.append(t)
+                    break
+    return picked[:count]
+
+
+async def add_random_tracks_to_queue(sp: Spotify, count: int, genre: str | None = None) -> dict:
+    tracks = await _random_genre_tracks(sp, count, genre)
+    if not tracks:
+        raise ValueError("Could not find any random tracks right now, try again.")
+    added, errors = await _queue_tracks(sp, tracks)
+    return {"added": added, "errors": errors, "tracks": [track_card(t) for t in tracks[:12]]}
+
+
+async def create_random_playlist(sp: Spotify, count: int, playlist_name: str | None, genre: str | None = None) -> dict:
+    tracks = await _random_genre_tracks(sp, count, genre)
+    return await _save_playlist(sp, playlist_name or "", tracks, f"{genre.title()} Roulette" if genre else "Random Hub")
+
+
+async def create_playlist_from_track(sp: Spotify, track_url: str, playlist_name: str, track_count: int = 50) -> dict:
+    _, track_id = parse_link(track_url, "track")
+    track = await sp.get(f"/tracks/{track_id}", market="from_token")
+    engine = MixEngine(sp, playlists_per_seed=10, max_playlists=24)
+    tracks = await engine.build([seed_from_track(track)], track_count, pinned=[track], seed_share=0.2)
+    lead = (track.get("artists") or [{}])[0].get("name", "")
+    result = await _save_playlist(sp, playlist_name, tracks, f"{track.get('name')} Radio")
+    result["seed"] = {"name": track.get("name"), "artists": lead}
+    return result
+
+
+async def _playlist_meta(sp: Spotify, pid: str) -> dict:
+    return await sp.get(f"/playlists/{pid}", fields="id,name,owner(id),public,collaborative,description")
+
+
+async def set_interleaved_queue(sp: Spotify, playlist_urls: list[str], per_playlist: int = 100) -> dict:
+    ids = []
     for url in playlist_urls:
-        pid = url.split("/")[-1].split("?")[0]
-        results = sp.playlist_items(pid)
-        ids = [item["track"]["id"] for item in results["items"] if item.get("track")]
-        playlist_tracks.append(ids)
-    max_len = max(len(p) for p in playlist_tracks)
-    queue = [p[i] for i in range(max_len) for p in playlist_tracks if i < len(p)]
-    for tid in queue:
-        _add_to_queue_with_retry(sp, tid)
-    return {"queued": len(queue), "token": token}
+        _, pid = parse_link(url, "playlist")
+        if pid not in ids:
+            ids.append(pid)
+    lists = await asyncio.gather(*(sp.playlist_items(pid, limit=per_playlist) for pid in ids))
+    lists = [lst for lst in lists if lst]
+    if not lists:
+        raise ValueError("Those playlists have no playable tracks.")
+    longest = max(len(lst) for lst in lists)
+    order = [lst[i] for i in range(longest) for lst in lists if i < len(lst)]
+    added, errors = await _queue_tracks(sp, order)
+    return {"queued": added, "errors": errors, "playlists": len(lists)}
 
-def shuffle_playlist(token_info: dict, playlist_url: str) -> dict:
-    sp, token = get_spotify(token_info)
-    pid = playlist_url.split("/")[-1].split("?")[0]
-    playlist = sp.playlist(pid)
-    results = sp.playlist_items(pid)
-    tracks_data = results["items"]
-    while results["next"]:
-        results = sp.next(results)
-        tracks_data.extend(results["items"])
-    track_ids = list({
-        t["track"]["id"] for t in tracks_data
-        if t.get("track") and re.match(r"^[a-zA-Z0-9]+$", t["track"].get("id", ""))
-    })
-    random.shuffle(track_ids)
-    user_id = sp.me()["id"]
-    is_own = playlist["owner"]["id"] == user_id
-    new_pl = sp.user_playlist_create(user_id, playlist["name"] if is_own else playlist["name"] + " (Shuffled)")
+
+async def shuffle_playlist(sp: Spotify, playlist_url: str) -> dict:
+    _, pid = parse_link(playlist_url, "playlist")
+    playlist = await _playlist_meta(sp, pid)
+    tracks = await sp.playlist_items(pid)
+    uris = list(dict.fromkeys(uri_of(t) for t in tracks))
+    if not uris:
+        raise ValueError("This playlist has no tracks that can be shuffled.")
+    random.shuffle(uris)
+    me = await sp.me()
+    is_own = (playlist.get("owner") or {}).get("id") == me["id"]
+    name = playlist.get("name") or "Playlist"
+    new_pl = await sp.create_playlist(
+        name if is_own else f"{name} (Shuffled)",
+        playlist.get("description") or "",
+        public=bool(playlist.get("public")) if is_own else False,
+    )
+    await sp.add_to_playlist(new_pl["id"], uris)
     if is_own:
-        sp.current_user_unfollow_playlist(pid)
-    new_id = new_pl["id"]
-    for i in range(0, len(track_ids), 100):
-        sp.playlist_add_items(new_id, [f"spotify:track:{t}" for t in track_ids[i:i + 100]])
-    return {"playlist_url": new_pl["external_urls"]["spotify"], "track_count": len(track_ids), "token": token}
+        await sp.unfollow_playlist(pid)
+    return {
+        "playlist_url": (new_pl.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/playlist/{new_pl['id']}",
+        "track_count": len(uris),
+    }
 
-def create_magic_playlist(token_info: dict, playlist_name: str, track_count: int) -> dict:
-    sp, token = get_spotify(token_info)
-    top_artists = sp.current_user_top_artists(limit=10, time_range="medium_term")
-    if not top_artists or not top_artists["items"]:
-        raise ValueError("No top artists found to build recommendations.")
-        
-    artist_ids = [a["id"] for a in top_artists["items"]]
-    
-    related_ids = []
-    for aid in random.sample(artist_ids, min(3, len(artist_ids))):
-        try:
-            related = sp.artist_related_artists(aid)
-            related_ids.extend([a["id"] for a in related["artists"][:3]])
-        except spotipy.exceptions.SpotifyException:
-            continue
-            
-    all_artist_ids = list(set(artist_ids + related_ids))
-    
-    track_ids = []
-    for aid in random.sample(all_artist_ids, min(min(track_count * 2, 100), len(all_artist_ids))):
-        try:
-            top_tracks = sp.artist_top_tracks(aid)
-            for t in top_tracks["tracks"]:
-                if t["id"] not in track_ids:
-                    track_ids.append(t["id"])
-                    break
-        except spotipy.exceptions.SpotifyException:
-            continue
-                
-    random.shuffle(track_ids)
-    track_ids = track_ids[:track_count]
-                
-    user_id = sp.me()["id"]
-    playlist = sp.user_playlist_create(user_id, playlist_name)
-    sp.playlist_add_items(playlist["id"], track_ids)
-    return {"playlist_url": playlist["external_urls"]["spotify"], "track_count": len(track_ids), "token": token}
 
-def _resolve_artist_ids(sp: spotipy.Spotify, urls: list[str]) -> list[str]:
-    import re
-    artist_ids = []
+async def _top(sp: Spotify, kind: str, time_range: str, limit: int = 50) -> list[dict]:
+    try:
+        data = await sp.get(f"/me/top/{kind}", limit=limit, time_range=time_range)
+    except SpotifyError:
+        return []
+    return [x for x in data.get("items") or [] if x and x.get("id")]
+
+
+async def _recent(sp: Spotify) -> dict:
+    try:
+        return await sp.get("/me/player/recently-played", limit=50)
+    except SpotifyError:
+        return {}
+
+
+async def create_magic_playlist(sp: Spotify, playlist_name: str, track_count: int) -> dict:
+    short_a, medium_a, short_t, medium_t, recent = await asyncio.gather(
+        _top(sp, "artists", "short_term", 20),
+        _top(sp, "artists", "medium_term", 30),
+        _top(sp, "tracks", "short_term", 50),
+        _top(sp, "tracks", "medium_term", 50),
+        _recent(sp),
+    )
+    recent_tracks = [track_of(i) for i in recent.get("items") or []]
+    recent_tracks = [t for t in recent_tracks if t]
+    artists: dict[str, dict] = {}
+    for a in short_a + medium_a:
+        artists.setdefault(a["id"], a)
+    tracks: dict[str, dict] = {}
+    for t in short_t + medium_t + recent_tracks:
+        tracks.setdefault(t["id"], t)
+    if not artists and not tracks:
+        raise ValueError("Not enough listening history yet. Play some music and try again.")
+
+    artist_list = list(artists.values())
+    weights = [1 / (i + 2) for i in range(len(artist_list))]
+    chosen_artists: list[dict] = []
+    while artist_list and len(chosen_artists) < min(5, len(artists)):
+        pick = random.choices(range(len(artist_list)), weights=weights)[0]
+        chosen_artists.append(artist_list.pop(pick))
+        weights.pop(pick)
+    track_list = list(tracks.values())
+    chosen_tracks = random.sample(track_list, min(4, len(track_list)))
+
+    seeds: list[Seed] = [seed_from_artist(a) for a in chosen_artists] + [seed_from_track(t) for t in chosen_tracks]
+    engine = MixEngine(sp, playlists_per_seed=4, max_playlists=30)
+    mix = await engine.build(seeds, track_count, exclude=set(tracks), seed_share=0.25)
+    if len(mix) < track_count:
+        more = await engine.build(seeds, track_count - len(mix), exclude=set(tracks) | {t["id"] for t in mix}, seed_share=0.5)
+        mix += more
+    result = await _save_playlist(sp, playlist_name, mix[:track_count], "Magic Mix")
+    result["seeds"] = [a["name"] for a in chosen_artists] + [t["name"] for t in chosen_tracks]
+    return result
+
+
+async def _resolve_seeds(sp: Spotify, urls: list[str]) -> list[Seed]:
+    parsed: list[tuple[str, str]] = []
     for url in urls:
-        if not url: continue
-        match = re.search(r"/(track|artist|album|playlist)/([a-zA-Z0-9]+)", url)
-        if match:
-            type_, id_ = match.groups()
+        try:
+            item = parse_link(url)
+        except ValueError:
+            continue
+        if item not in parsed:
+            parsed.append(item)
+    if not parsed:
+        raise ValueError("None of the seeds are valid Spotify track, artist, album or playlist links.")
+
+    async def resolve(kind: str, sid: str) -> list[Seed]:
+        try:
+            if kind == "track":
+                return [seed_from_track(await sp.get(f"/tracks/{sid}", market="from_token"))]
+            if kind == "artist":
+                return [seed_from_artist(await sp.get(f"/artists/{sid}"))]
+            if kind == "album":
+                return [seed_from_album(await sp.get(f"/albums/{sid}"))]
+            items = await sp.playlist_items(sid, limit=100)
+        except SpotifyError:
+            return []
+        if not items:
+            return []
+        counts: dict[str, int] = {}
+        names: dict[str, str] = {}
+        for t in items:
+            for a in (t.get("artists") or [])[:1]:
+                if a.get("id"):
+                    counts[a["id"]] = counts.get(a["id"], 0) + 1
+                    names[a["id"]] = a.get("name") or ""
+        top = sorted(counts, key=counts.get, reverse=True)[:2]
+        seeds = [seed_from_artist({"id": aid, "name": names[aid]}) for aid in top]
+        seeds += [seed_from_track(t) for t in random.sample(items, min(2, len(items)))]
+        return seeds
+
+    groups = await asyncio.gather(*(resolve(k, s) for k, s in parsed[:12]))
+    return [seed for group in groups for seed in group]
+
+
+async def create_fusion_playlist(sp: Spotify, seed_urls: list[str], playlist_name: str, track_count: int) -> dict:
+    seeds = await _resolve_seeds(sp, seed_urls)
+    if not seeds:
+        raise ValueError("Could not read any of the seeds from Spotify.")
+    per_seed = max(2, min(8, 30 // len(seeds)))
+    engine = MixEngine(sp, playlists_per_seed=per_seed, max_playlists=32)
+    mix = await engine.build(seeds, track_count, seed_share=0.3)
+    return await _save_playlist(sp, playlist_name, mix, "Fusion Mix")
+
+
+async def add_time_machine_tracks(sp: Spotify, decade: int, count: int) -> dict:
+    query = f"year:{decade}-{decade + 9}"
+    offsets = random.sample(range(0, 400, 25), min(16, max(3, count // 4 + 2)))
+
+    async def page(offset: int) -> list[dict]:
+        try:
+            return await sp.search(query, "track", limit=50, offset=offset)
+        except SpotifyError:
+            return []
+
+    pages = await asyncio.gather(*(page(o) for o in offsets))
+    pool: dict[tuple[str, str], dict] = {}
+    for found in pages:
+        for t in found:
+            year = ((t.get("album") or {}).get("release_date") or "0")[:4]
+            if is_song(t) and year.isdigit() and decade <= int(year) <= decade + 9:
+                pool.setdefault(song_key(t), t)
+    tracks = list(pool.values())
+    random.shuffle(tracks)
+    if any(t.get("popularity") is not None for t in tracks):
+        tracks.sort(key=lambda t: (t.get("popularity") or 0) + random.uniform(0, 35), reverse=True)
+    picked: list[dict] = []
+    per_artist: dict[str, int] = {}
+    for t in tracks:
+        artist = (t.get("artists") or [{}])[0].get("id", "")
+        if per_artist.get(artist, 0) >= 2:
+            continue
+        per_artist[artist] = per_artist.get(artist, 0) + 1
+        picked.append(t)
+        if len(picked) >= count:
+            break
+    if not picked:
+        raise ValueError("Spotify returned nothing for that decade, try again.")
+    random.shuffle(picked)
+    added, errors = await _queue_tracks(sp, picked)
+    return {"added": added, "errors": errors, "tracks": [track_card(t) for t in picked[:12]]}
+
+
+async def get_track_stats(sp: Spotify, track_url: str) -> dict:
+    _, track_id = parse_link(track_url, "track")
+    track = await sp.get(f"/tracks/{track_id}", market="from_token")
+    linked = (track.get("linked_from") or {}).get("id")
+    if track.get("id"):
+        track_id = track["id"]
+    album_id = (track.get("album") or {}).get("id")
+    artist_refs = [a for a in track.get("artists") or [] if a.get("id")][:4]
+    engine = MixEngine(sp)
+
+    async def artist_info(ref: dict) -> dict:
+        async def safe(coro, default):
             try:
-                if type_ == "artist":
-                    artist_ids.append(id_)
-                elif type_ == "track":
-                    track = sp.track(id_)
-                    artist_ids.append(track["artists"][0]["id"])
-                elif type_ == "album":
-                    album = sp.album(id_)
-                    artist_ids.append(album["artists"][0]["id"])
-                elif type_ == "playlist":
-                    results = sp.playlist_items(id_, limit=20)
-                    for item in results["items"]:
-                        if item.get("track") and item["track"].get("artists"):
-                            artist_ids.append(item["track"]["artists"][0]["id"])
-            except spotipy.exceptions.SpotifyException:
-                pass
-    return list(set(artist_ids))
+                return await coro
+            except SpotifyError:
+                return default
 
-def create_fusion_playlist(token_info: dict, seed_urls: list[str], playlist_name: str, track_count: int) -> dict:
-    sp, token = get_spotify(token_info)
-    artist_ids = _resolve_artist_ids(sp, seed_urls)
-    
-    if not artist_ids:
-        raise ValueError("Could not resolve any playable artists from the provided URLs.")
-        
-    related_ids = []
-    for aid in artist_ids:
-        try:
-            related = sp.artist_related_artists(aid)
-            related_ids.extend([a["id"] for a in related["artists"][:5]])
-        except spotipy.exceptions.SpotifyException:
-            continue
-            
-    all_artist_ids = list(set(artist_ids + related_ids))
-    
-    track_ids = []
-    for aid in random.sample(all_artist_ids, min(min(track_count * 2, 100), len(all_artist_ids))):
-        try:
-            top_tracks = sp.artist_top_tracks(aid)
-            for t in top_tracks["tracks"]:
-                if t["id"] not in track_ids:
-                    track_ids.append(t["id"])
-                    break
-        except spotipy.exceptions.SpotifyException:
-            continue
-            
-    random.shuffle(track_ids)
-    track_ids = track_ids[:track_count]
-                
-    user_id = sp.me()["id"]
-    playlist = sp.user_playlist_create(user_id, playlist_name)
-    sp.playlist_add_items(playlist["id"], track_ids)
-    return {"playlist_url": playlist["external_urls"]["spotify"], "track_count": len(track_ids), "token": token}
+        full, albums, singles, top = await asyncio.gather(
+            safe(sp.get(f"/artists/{ref['id']}"), ref),
+            safe(sp.get(f"/artists/{ref['id']}/albums", include_groups="album", limit=1), {}),
+            safe(sp.get(f"/artists/{ref['id']}/albums", include_groups="single", limit=1), {}),
+            safe(engine.artist_tracks(ref["id"], ref.get("name")), []),
+        )
+        card = artist_card(full)
+        card["albums_total"] = albums.get("total")
+        card["singles_total"] = singles.get("total")
+        card["top_tracks"] = [
+            {"name": t.get("name"), "url": track_card(t)["url"], "image": image_of(t.get("album"), 2), "current": t.get("id") in (track_id, linked) or t.get("name") == track.get("name")}
+            for t in top[:5]
+        ]
+        return card
 
-def get_now_playing(token_info: dict) -> dict:
-    sp, token = get_spotify(token_info)
-    current = sp.currently_playing()
-    if not current or not current.get("item"):
-        return {"playing": False, "token": token}
-    item = current["item"]
-    return {
-        "playing": True,
-        "is_playing": current.get("is_playing", False),
-        "track": {
-            "id": item["id"],
-            "name": item["name"],
-            "artists": [a["name"] for a in item["artists"]],
-            "album": item["album"]["name"],
-            "image": item["album"]["images"][0]["url"] if item["album"]["images"] else None,
-            "progress_ms": current.get("progress_ms", 0),
-            "duration_ms": item["duration_ms"],
-        },
-        "token": token,
-    }
+    album_task = sp.get(f"/albums/{album_id}") if album_id else asyncio.sleep(0, result={})
+    album, artists = await asyncio.gather(album_task, asyncio.gather(*(artist_info(a) for a in artist_refs)))
+    album = album or track.get("album") or {}
+    album_tracks = [t for t in ((album.get("tracks") or {}).get("items") or []) if t]
 
-def skip_track(token_info: dict) -> dict:
-    sp, token = get_spotify(token_info)
-    sp.next_track()
-    return {"skipped": True, "token": token}
+    def is_current(t: dict) -> bool:
+        if t.get("id") in (track_id, linked):
+            return True
+        return t.get("track_number") == track.get("track_number") and t.get("disc_number") == track.get("disc_number") and t.get("name") == track.get("name")
 
-def previous_track(token_info: dict) -> dict:
-    sp, token = get_spotify(token_info)
-    sp.previous_track()
-    return {"previous": True, "token": token}
-
-def play_track(token_info: dict) -> dict:
-    sp, token = get_spotify(token_info)
-    sp.start_playback()
-    return {"playing": True, "token": token}
-
-def pause_track(token_info: dict) -> dict:
-    sp, token = get_spotify(token_info)
-    sp.pause_playback()
-    return {"paused": True, "token": token}
-
-def get_user_playlists(token_info: dict, limit: int = 50, offset: int = 0) -> dict:
-    sp, token = get_spotify(token_info)
-    result = sp.current_user_playlists(limit=limit, offset=offset)
-    playlists = [
-        {
-            "id": p["id"],
-            "name": p["name"],
-            "url": p["external_urls"]["spotify"],
-            "image": p["images"][0]["url"] if p.get("images") else None,
-            "tracks_total": p["tracks"]["total"],
-            "owner": p["owner"]["display_name"],
-        }
-        for p in result["items"]
-    ]
-    return {"playlists": playlists, "total": result["total"], "token": token}
-
-def get_top_tracks(token_info: dict, limit: int = 20, time_range: str = "medium_term") -> dict:
-    sp, token = get_spotify(token_info)
-    result = sp.current_user_top_tracks(limit=limit, time_range=time_range)
-    tracks = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "artists": [a["name"] for a in t["artists"]],
-            "album": t["album"]["name"],
-            "image": t["album"]["images"][0]["url"] if t["album"]["images"] else None,
-            "url": t["external_urls"]["spotify"],
-            "popularity": t.get("popularity", 0),
-            "duration_ms": t.get("duration_ms", 0),
-            "explicit": t.get("explicit", False),
-        }
-        for t in result["items"]
-    ]
-    return {"tracks": tracks, "token": token}
-
-def get_top_artists(token_info: dict, limit: int = 50, time_range: str = "medium_term") -> dict:
-    sp, token = get_spotify(token_info)
-    result = sp.current_user_top_artists(limit=limit, time_range=time_range)
-    artists = [
-        {
-            "id": a["id"],
-            "name": a["name"],
-            "image": a["images"][0]["url"] if a.get("images") else None,
-            "url": a["external_urls"]["spotify"],
-            "followers": a["followers"]["total"],
-            "popularity": a["popularity"],
-            "genres": a["genres"],
-        }
-        for a in result["items"]
-    ]
-    return {"artists": artists, "token": token}
-
-def get_top_genres(token_info: dict, limit: int = 50, time_range: str = "medium_term") -> dict:
-    sp, token = get_spotify(token_info)
-    result = sp.current_user_top_artists(limit=50, time_range=time_range)
-    counts = {}
-    for a in result["items"]:
-        for g in a.get("genres", []):
-            counts[g] = counts.get(g, 0) + 1
-            
-    sorted_genres = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:limit]
-    genres = [{"name": k, "count": v} for k, v in sorted_genres]
-    return {"genres": genres, "token": token}
-
-def search_spotify(token_info: dict, query: str, limit: int = 15) -> dict:
-    sp, token = get_spotify(token_info)
-    result = sp.search(q=query, limit=limit, type="track,artist,album")
-    
-    tracks = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "artists": [a["name"] for a in t["artists"]],
-            "image": t["album"]["images"][0]["url"] if t["album"].get("images") else None,
-            "url": t["external_urls"]["spotify"]
-        }
-        for t in result.get("tracks", {}).get("items", [])
-    ]
-    
-    artists = [
-        {
-            "id": a["id"],
-            "name": a["name"],
-            "image": a["images"][0]["url"] if a.get("images") else None,
-            "url": a["external_urls"]["spotify"]
-        }
-        for a in result.get("artists", {}).get("items", [])
-    ]
-    
-    albums = [
-        {
-            "id": a["id"],
-            "name": a["name"],
-            "artists": [ar["name"] for ar in a["artists"]],
-            "image": a["images"][0]["url"] if a.get("images") else None,
-            "url": a["external_urls"]["spotify"]
-        }
-        for a in result.get("albums", {}).get("items", [])
-    ]
-    
-    return {
-        "tracks": tracks,
-        "artists": artists,
-        "albums": albums,
-        "token": token
-    }
-
-def add_time_machine_tracks(token_info: dict, decade: int, count: int) -> dict:
-    sp, token = get_spotify(token_info)
-    added = 0
-    errors = 0
-    query = f"year:{decade}-{decade+9}"
-    
-    for _ in range(count):
-        offset = random.randint(0, 900)
-        try:
-            results = sp.search(q=query, type="track", limit=50, offset=offset)
-            tracks = results["tracks"]["items"]
-            if not tracks:
-                continue
-            track = random.choice(tracks)
-            sp.add_to_queue(uri=track["uri"])
-            added += 1
-        except spotipy.exceptions.SpotifyException as e:
-            if e.http_status == 429:
-                time.sleep(int(e.headers.get("Retry-After", 1)))
-            errors += 1
-    return {"added": added, "errors": errors, "token": token}
-
-def get_track_stats(token_info: dict, track_url: str) -> dict:
-    sp, token = get_spotify(token_info)
-    track_id = track_url.split("/")[-1].split("?")[0]
-    track = sp.track(track_id)
-    
-    artist_ids = [a["id"] for a in track["artists"]]
-    artists = sp.artists(artist_ids)["artists"]
-    
-    album = sp.album(track["album"]["id"])
-    
+    total_ms = sum(t.get("duration_ms") or 0 for t in album_tracks)
+    position = next((i for i, t in enumerate(album_tracks) if is_current(t)), None)
     return {
         "track": {
-            "name": track["name"],
-            "popularity": track["popularity"],
-            "explicit": track["explicit"],
-            "duration_ms": track["duration_ms"],
+            "name": track.get("name"),
+            "url": track_card(track)["url"],
+            "popularity": track.get("popularity"),
+            "explicit": bool(track.get("explicit")),
+            "duration_ms": track.get("duration_ms") or 0,
+            "track_number": track.get("track_number"),
+            "disc_number": track.get("disc_number"),
+            "isrc": (track.get("external_ids") or {}).get("isrc"),
+            "preview_url": track.get("preview_url"),
+            "playable": track.get("is_playable"),
+            "album_position": position + 1 if position is not None else None,
         },
         "album": {
-            "name": album["name"],
-            "release_date": album["release_date"],
-            "total_tracks": album["total_tracks"],
-            "image": album["images"][0]["url"] if album["images"] else None,
-            "label": album.get("label", ""),
+            "name": album.get("name"),
+            "url": (album.get("external_urls") or {}).get("spotify"),
+            "album_type": album.get("album_type"),
+            "release_date": album.get("release_date") or "",
+            "release_date_precision": album.get("release_date_precision"),
+            "total_tracks": album.get("total_tracks"),
+            "duration_ms": total_ms or None,
+            "image": image_of(album),
+            "label": album.get("label") or None,
+            "popularity": album.get("popularity"),
+            "copyright": next((c.get("text") for c in album.get("copyrights") or [] if c.get("text")), None),
+            "tracks": [
+                {"name": t.get("name"), "duration_ms": t.get("duration_ms") or 0, "number": t.get("track_number"), "current": is_current(t)}
+                for t in album_tracks[:40]
+            ],
         },
-        "artists": [
-            {
-                "name": a["name"],
-                "popularity": a["popularity"],
-                "followers": a["followers"]["total"],
-                "genres": a["genres"],
-            } for a in artists
-        ],
-        "token": token,
+        "artists": list(artists),
     }
 
-def get_fusion_suggestions(token_info: dict) -> dict:
-    sp, token = get_spotify(token_info)
-    
-    recent_res = sp.current_user_recently_played(limit=10)
-    recent_tracks = []
-    seen_rt = set()
-    for item in recent_res.get("items", []):
-        t = item["track"]
-        if t["id"] not in seen_rt:
-            seen_rt.add(t["id"])
-            recent_tracks.append({
-                "id": t["id"],
-                "name": t["name"],
-                "artists": [a["name"] for a in t["artists"]],
-                "image": t["album"]["images"][0]["url"] if t["album"].get("images") else None,
-                "url": t["external_urls"]["spotify"]
-            })
 
-    top_t_res = sp.current_user_top_tracks(limit=10, time_range="short_term")
-    top_tracks = [
-        {
-            "id": t["id"],
-            "name": t["name"],
-            "artists": [a["name"] for a in t["artists"]],
-            "image": t["album"]["images"][0]["url"] if t["album"].get("images") else None,
-            "url": t["external_urls"]["spotify"]
-        }
-        for t in top_t_res.get("items", [])
-    ]
+async def get_now_playing(sp: Spotify) -> dict:
+    current = await sp.get("/me/player/currently-playing", additional_types="track,episode")
+    item = current.get("item") if current else None
+    if not item:
+        return {"playing": False}
+    if item.get("type") == "episode":
+        show = item.get("show") or {}
+        artists = [show.get("name") or "Podcast"]
+        image = image_of(item) or image_of(show)
+        album = show.get("name")
+    else:
+        artists = [a.get("name") for a in item.get("artists") or []]
+        image = image_of(item.get("album"))
+        album = (item.get("album") or {}).get("name")
+    return {
+        "playing": True,
+        "is_playing": bool(current.get("is_playing")),
+        "track": {
+            "id": item.get("id"),
+            "type": item.get("type", "track"),
+            "name": item.get("name"),
+            "artists": artists,
+            "album": album,
+            "image": image,
+            "url": (item.get("external_urls") or {}).get("spotify"),
+            "progress_ms": current.get("progress_ms") or 0,
+            "duration_ms": item.get("duration_ms") or 0,
+        },
+    }
 
-    top_art_res = sp.current_user_top_artists(limit=10, time_range="short_term")
-    top_artists = [
-        {
-            "id": a["id"],
-            "name": a["name"],
-            "image": a["images"][0]["url"] if a.get("images") else None,
-            "url": a["external_urls"]["spotify"]
-        }
-        for a in top_art_res.get("items", [])
-    ]
-    
+
+async def playback(sp: Spotify, action: str) -> dict:
+    if action == "skip":
+        await sp.post("/me/player/next")
+    elif action == "previous":
+        await sp.post("/me/player/previous")
+    elif action == "play":
+        await sp.put("/me/player/play")
+    elif action == "pause":
+        await sp.put("/me/player/pause")
+    else:
+        raise ValueError("Unknown playback action")
+    return {action: True}
+
+
+async def get_user_playlists(sp: Spotify, limit: int = 50, offset: int = 0) -> dict:
+    data = await sp.get("/me/playlists", limit=limit, offset=offset)
+    me = await sp.me()
+    playlists = []
+    for p in data.get("items") or []:
+        if not p or not p.get("id"):
+            continue
+        owner = p.get("owner") or {}
+        playlists.append(
+            {
+                "id": p["id"],
+                "name": p.get("name") or "Untitled",
+                "url": (p.get("external_urls") or {}).get("spotify") or f"https://open.spotify.com/playlist/{p['id']}",
+                "image": image_of(p),
+                "tracks_total": ((p.get("items") or p.get("tracks")) or {}).get("total") or 0,
+                "owner": owner.get("display_name") or owner.get("id"),
+                "own": owner.get("id") == me.get("id") or bool(p.get("collaborative")),
+            }
+        )
+    return {"playlists": playlists, "total": data.get("total", len(playlists))}
+
+
+async def get_top_tracks(sp: Spotify, limit: int = 50, time_range: str = "medium_term") -> dict:
+    data = await sp.get("/me/top/tracks", limit=limit, time_range=time_range)
+    return {"tracks": [track_card(t) for t in data.get("items") or [] if t]}
+
+
+async def get_top_artists(sp: Spotify, limit: int = 50, time_range: str = "medium_term") -> dict:
+    data = await sp.get("/me/top/artists", limit=limit, time_range=time_range)
+    return {"artists": [artist_card(a) for a in data.get("items") or [] if a]}
+
+
+async def get_top_genres(sp: Spotify, limit: int = 50, time_range: str = "medium_term") -> dict:
+    data = await sp.get("/me/top/artists", limit=50, time_range=time_range)
+    items = [a for a in data.get("items") or [] if a]
+    counts: dict[str, float] = {}
+    tagged = 0
+    for rank, a in enumerate(items):
+        genres = a.get("genres") or []
+        if genres:
+            tagged += 1
+        for g in genres:
+            counts[g] = counts.get(g, 0) + 1 + (50 - rank) / 100
+    ordered = sorted(counts.items(), key=lambda x: x[1], reverse=True)[:limit]
+    raw = {g: sum(1 for a in items if g in (a.get("genres") or [])) for g, _ in ordered}
+    return {
+        "genres": [{"name": g, "count": raw[g]} for g, _ in ordered],
+        "artists_total": len(items),
+        "artists_tagged": tagged,
+    }
+
+
+async def search_spotify(sp: Spotify, query: str, limit: int = 10) -> dict:
+    limit = max(1, min(limit, sp.search_limit, 50))
+    try:
+        data = await sp.get("/search", q=query, type="track,artist,album", limit=limit)
+    except SpotifyError as exc:
+        if exc.status != 400 or limit <= 10:
+            raise
+        sp.search_limit = 10
+        data = await sp.get("/search", q=query, type="track,artist,album", limit=10)
+    return {
+        "tracks": [track_card(t) for t in (data.get("tracks") or {}).get("items") or [] if t],
+        "artists": [artist_card(a) for a in (data.get("artists") or {}).get("items") or [] if a],
+        "albums": [album_card(a) for a in (data.get("albums") or {}).get("items") or [] if a],
+    }
+
+
+async def get_fusion_suggestions(sp: Spotify) -> dict:
+    async def safe(coro):
+        try:
+            return await coro
+        except SpotifyError:
+            return {}
+
+    recent, top_t, top_a = await asyncio.gather(
+        safe(sp.get("/me/player/recently-played", limit=30)),
+        safe(sp.get("/me/top/tracks", limit=12, time_range="short_term")),
+        safe(sp.get("/me/top/artists", limit=12, time_range="short_term")),
+    )
+    recent_tracks: list[dict] = []
+    seen: set[str] = set()
+    for entry in recent.get("items") or []:
+        t = track_of(entry)
+        if t and t["id"] not in seen:
+            seen.add(t["id"])
+            recent_tracks.append(track_card(t))
+        if len(recent_tracks) >= 12:
+            break
     return {
         "recent_tracks": recent_tracks,
-        "top_tracks": top_tracks,
-        "top_artists": top_artists,
-        "token": token
+        "top_tracks": [track_card(t) for t in top_t.get("items") or [] if t],
+        "top_artists": [artist_card(a) for a in top_a.get("items") or [] if a],
+    }
+
+
+REWIND_SOURCES = {
+    "recent": "Recently Played",
+    "short_term": "Last 4 Weeks",
+    "medium_term": "Last 6 Months",
+    "long_term": "All Time",
+}
+
+
+async def create_rewind_playlist(sp: Spotify, source: str, playlist_name: str | None, count: int) -> dict:
+    if source == "recent":
+        data = await sp.get("/me/player/recently-played", limit=50)
+        tracks = [t for t in (track_of(i) for i in data.get("items") or []) if t]
+    else:
+        tracks = []
+        for offset in range(0, count, 50):
+            data = await sp.get("/me/top/tracks", limit=min(50, count - offset), offset=offset, time_range=source)
+            items = [t for t in data.get("items") or [] if t and t.get("id")]
+            tracks += items
+            if len(items) < 50:
+                break
+    unique: dict[str, dict] = {}
+    for t in tracks:
+        unique.setdefault(t["id"], t)
+    picked = list(unique.values())[:count]
+    if not picked:
+        raise ValueError("Nothing to rewind yet, listen to some music first.")
+    return await _save_playlist(sp, playlist_name or "", picked, f"Rewind: {REWIND_SOURCES[source]}")
+
+
+async def get_queue(sp: Spotify) -> dict:
+    data = await sp.get("/me/player/queue")
+    current = data.get("currently_playing")
+    upcoming = [t for t in data.get("queue") or [] if t and t.get("type", "track") == "track"]
+    return {
+        "current": track_card(current) if current and current.get("type", "track") == "track" else None,
+        "queue": [track_card(t) for t in upcoming[:30]],
     }

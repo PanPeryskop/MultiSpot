@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Shuffle, Loader2, ExternalLink } from 'lucide-react'
-import { ToastContext } from '../App'
+import { ToastContext } from '../toast'
+import { api } from '../api'
 import styles from './FeaturePage.module.css'
 import PlaylistPicker from '../components/PlaylistPicker'
 
@@ -11,20 +12,13 @@ export default function PlaylistShufflerPage() {
   const [result, setResult] = useState(null)
 
   const submit = async () => {
-    setLoading(true)
-    setResult(null)
     const targetUrl = manualUrl.trim() || (selectedPlaylist ? selectedPlaylist.url : null)
     if (!targetUrl) return
+    setLoading(true)
+    setResult(null)
     
     try {
-      const r = await fetch('/api/playlist-shuffler', {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ playlist_url: targetUrl }),
-      })
-      const d = await r.json()
-      if (!r.ok) throw new Error(d.detail || 'Something went wrong')
+      const d = await api('/api/playlist-shuffler', { method: 'POST', body: { playlist_url: targetUrl } })
       setResult(d)
       ToastContext.push('Playlist shuffled successfully!', 'success')
       setSelectedPlaylist(null)

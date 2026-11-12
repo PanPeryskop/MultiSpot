@@ -1,55 +1,40 @@
 import { useState, useEffect } from 'react'
-import { BarChart3, Loader2, Clock, MapPin, ExternalLink, Users, Mic2 } from 'lucide-react'
-import { ToastContext } from '../App'
+import { BarChart3, Loader2, Clock, ExternalLink, Users } from 'lucide-react'
+import { ToastContext } from '../toast'
+import { api, compact, formatDuration } from '../api'
 import featureStyles from './FeaturePage.module.css'
 import styles from './StatsPage.module.css'
 
 export default function StatsPage() {
   const [timeRange, setTimeRange] = useState('medium_term')
   const [activeTab, setActiveTab] = useState('overview')
-  const [loading, setLoading] = useState(false)
-  const [stats, setStats] = useState({ tracks: null, artists: null, genres: null })
-
-  const fetchStats = async () => {
-    setLoading(true)
-    try {
-      const [rTracks, rArtists, rGenres] = await Promise.all([
-        fetch(`/api/top-tracks?limit=50&time_range=${timeRange}`, { credentials: 'include' }),
-        fetch(`/api/top-artists?limit=50&time_range=${timeRange}`, { credentials: 'include' }),
-        fetch(`/api/top-genres?limit=20&time_range=${timeRange}`, { credentials: 'include' }),
-      ])
-      
-      const [dTracks, dArtists, dGenres] = await Promise.all([
-        rTracks.json(), rArtists.json(), rGenres.json()
-      ])
-
-      if (!rTracks.ok) throw new Error(dTracks.detail || 'Failed fetching tracks')
-      if (!rArtists.ok) throw new Error(dArtists.detail || 'Failed fetching artists')
-      if (!rGenres.ok) throw new Error(dGenres.detail || 'Failed fetching genres')
-
-      setStats({
-        tracks: dTracks.tracks,
-        artists: dArtists.artists,
-        genres: dGenres.genres
-      })
-    } catch (e) {
-      ToastContext.push(e.message, 'error')
-    } finally {
-      setLoading(false)
-    }
-  }
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({ tracks: null, artists: null, genres: null, tagged: 0, totalArtists: 0 })
 
   useEffect(() => {
-    fetchStats()
+    let alive = true
+    Promise.all([
+      api(`/api/top-tracks?limit=50&time_range=${timeRange}`),
+      api(`/api/top-artists?limit=50&time_range=${timeRange}`),
+      api(`/api/top-genres?limit=20&time_range=${timeRange}`),
+    ])
+      .then(([dTracks, dArtists, dGenres]) => {
+        if (!alive) return
+        setStats({ tracks: dTracks.tracks, artists: dArtists.artists, genres: dGenres.genres, tagged: dGenres.artists_tagged, totalArtists: dGenres.artists_total })
+      })
+      .catch(e => alive && ToastContext.push(e.message, 'error'))
+      .finally(() => alive && setLoading(false))
+    return () => { alive = false }
   }, [timeRange])
 
-  const formatDuration = (ms) => {
-    const minutes = Math.floor(ms / 60000)
-    const seconds = ((ms % 60000) / 1000).toFixed(0)
-    return minutes + ":" + (seconds < 10 ? '0' : '') + seconds
+  const changeRange = (value) => {
+    if (value === timeRange) return
+    setLoading(true)
+    setTimeRange(value)
   }
 
   const getPopularityColor = (pop) => {
+    if (pop === null || pop === undefined) return 'var(--text-secondary)'
     if (pop >= 80) return 'var(--green)'
     if (pop >= 50) return 'var(--yellow)'
     return 'var(--red)'
@@ -85,7 +70,7 @@ export default function StatsPage() {
 
         <div className={featureStyles.field} style={{ margin: 0 }}>
           <label className="label">Time Period</label>
-          <select className={`input ${styles.timeSelect}`} value={timeRange} onChange={e => setTimeRange(e.target.value)}>
+          <select className={`input ${styles.timeSelect}`} value={timeRange} onChange={e => changeRange(e.target.value)}>
             <option value="short_term">Past Month</option>
             <option value="medium_term">Past 6 Months</option>
             <option value="long_term">All Time</option>
@@ -105,10 +90,10 @@ export default function StatsPage() {
                   <h3 className={`${styles.overviewCardHeader} ${styles.artistHeader}`}>Top Artist</h3>
                   {stats.artists.length > 0 && (
                      <div className={styles.overviewContent}>
-                       <img src={stats.artists[0].image} alt="" className={styles.overviewImg} />
+                       {stats.artists[0].image ? <img src={stats.artists[0].image} alt="" className={styles.overviewImg} /> : <div className={styles.overviewImg} />}
                        <div>
                          <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--green)' }}>{stats.artists[0].name}</div>
-                         <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>★ {stats.artists[0].popularity} Popularity</div>
+                         {stats.artists[0].popularity !== null && stats.artists[0].popularity !== undefined && <div style={{ fontSize: 14, color: 'var(--text-secondary)' }}>★ {stats.artists[0].popularity} Popularity</div>}
                        </div>
                      </div>
                   )}
@@ -118,7 +103,7 @@ export default function StatsPage() {
                   <h3 className={`${styles.overviewCardHeader} ${styles.trackHeader}`}>Top Track</h3>
                    {stats.tracks.length > 0 && (
                      <div className={styles.overviewContent}>
-                       <img src={stats.tracks[0].image} alt="" className={styles.overviewImg} />
+                       {stats.tracks[0].image ? <img src={stats.tracks[0].image} alt="" className={styles.overviewImg} /> : <div className={styles.overviewImg} />}
                        <div style={{ flex: 1, minWidth: 0 }}>
                          <div style={{ fontSize: 24, fontWeight: 800, color: 'var(--yellow)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{stats.tracks[0].name}</div>
                          <div style={{ fontSize: 16, color: 'var(--text)' }}>{stats.tracks[0].artists.join(', ')}</div>
@@ -132,14 +117,24 @@ export default function StatsPage() {
                 <h3 style={{ fontSize: 24, fontWeight: 800, textTransform: 'uppercase', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 12 }}>
                   <BarChart3 size={24} color="var(--purple)" /> DNA Breakdown (Top Genres)
                 </h3>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-                  {stats.genres.map((g, idx) => (
-                    <div key={g.name} style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '2px solid var(--black)', fontSize: 14 }}>
-                      <div style={{ background: 'var(--purple)', color: 'var(--black)', fontWeight: 800, padding: '8px 12px', borderRight: '2px solid var(--black)' }}>#{idx + 1}</div>
-                      <div style={{ padding: '8px 16px', fontWeight: 600, textTransform: 'uppercase' }}>{g.name}</div>
+                {stats.genres.length === 0 ? (
+                  <p style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Spotify has stopped tagging most artists with genres, so there is nothing to break down for this period.</p>
+                ) : (
+                  <>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                      {stats.genres.map((g, idx) => (
+                        <div key={g.name} style={{ display: 'flex', alignItems: 'center', background: 'var(--surface)', border: '2px solid var(--black)', fontSize: 14 }}>
+                          <div style={{ background: 'var(--purple)', color: 'var(--black)', fontWeight: 800, padding: '8px 12px', borderRight: '2px solid var(--black)' }}>#{idx + 1}</div>
+                          <div style={{ padding: '8px 16px', fontWeight: 600, textTransform: 'uppercase' }}>{g.name}</div>
+                          <div style={{ padding: '8px 12px', color: 'var(--text-secondary)', borderLeft: '2px solid var(--black)' }}>×{g.count}</div>
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
+                    {stats.totalArtists > 0 && stats.tagged < stats.totalArtists && (
+                      <p style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 16 }}>Based on {stats.tagged} of your top {stats.totalArtists} artists. Spotify no longer lists genres for the rest.</p>
+                    )}
+                  </>
+                )}
               </div>
 
             </div>
@@ -162,7 +157,7 @@ export default function StatsPage() {
                   <div style={{ padding: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface)', fontSize: 13 }}>
                     <div style={{ display: 'flex', gap: 12 }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: 'var(--text-secondary)' }}><Clock size={14} /> {formatDuration(t.duration_ms)}</span>
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: getPopularityColor(t.popularity), fontWeight: 'bold' }}>★ {t.popularity}</span>
+                      {t.popularity !== null && t.popularity !== undefined && <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: getPopularityColor(t.popularity), fontWeight: 'bold' }}>★ {t.popularity}</span>}
                       {t.explicit && <span style={{ color: 'var(--red)', fontWeight: 'bold' }}>EXP</span>}
                     </div>
                     <a href={t.url} target="_blank" rel="noreferrer" style={{ color: 'var(--text)', display: 'flex', alignItems: 'center' }}>
@@ -184,8 +179,8 @@ export default function StatsPage() {
                    </div>
                    <h4 style={{ fontSize: 18, fontWeight: 700, margin: '0 0 8px 0', color: 'var(--text)' }}>{a.name}</h4>
                    <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'var(--text-secondary)', marginBottom: 16 }}>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {(a.followers / 1000000).toFixed(1)}M</span>
-                     <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: getPopularityColor(a.popularity), fontWeight: 'bold' }}>★ {a.popularity}</span>
+                     {a.followers !== null && a.followers !== undefined && <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><Users size={14} /> {compact(a.followers)}</span>}
+                     {a.popularity !== null && a.popularity !== undefined && <span style={{ display: 'flex', alignItems: 'center', gap: 4, color: getPopularityColor(a.popularity), fontWeight: 'bold' }}>★ {a.popularity}</span>}
                    </div>
                    <a href={a.url} target="_blank" rel="noreferrer" className="btn" style={{ width: '100%', justifyContent: 'center', background: 'var(--surface)', border: '2px solid var(--black)' }}>View Spotify <ExternalLink size={14} /></a>
                  </div>

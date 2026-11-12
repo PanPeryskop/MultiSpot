@@ -1,0 +1,7 @@
+.venv/
+build/
+__pycache__/
+*.pyc
+storage/
+.venv-build/
+.ruff_cache/
