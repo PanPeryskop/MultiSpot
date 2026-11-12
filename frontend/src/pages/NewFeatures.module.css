@@ -1,0 +1,487 @@
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.segmented {
+  display: flex;
+  border: 2px solid var(--border);
+  box-shadow: 3px 3px 0 var(--white);
+}
+
+.segmented button {
+  padding: 10px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  background: var(--surface);
+  transition: var(--transition);
+}
+
+.segmented button + button {
+  border-left: 2px solid var(--border);
+}
+
+.segmented button:hover {
+  color: var(--text);
+}
+
+.segmented .segOn {
+  background: var(--green);
+  color: var(--black);
+}
+
+.scanning,
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 80px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.radarIcon {
+  color: var(--green);
+  animation: sweep 1.6s linear infinite;
+}
+
+@keyframes sweep {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+.meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.releaseGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  gap: 20px;
+}
+
+.release {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.releaseArt {
+  position: relative;
+  aspect-ratio: 1;
+  border: 2px solid var(--border-dim);
+  background: var(--surface-2);
+  overflow: hidden;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.18s, border-color 0.18s;
+}
+
+.releaseArt img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.release:hover .releaseArt {
+  transform: translate(-4px, -4px) rotate(-1.5deg);
+  border-color: #ff8a3d;
+  box-shadow: 6px 6px 0 #ff8a3d;
+}
+
+.badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  padding: 3px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  background: var(--white);
+  color: var(--black);
+}
+
+.badgeAlbum {
+  background: #ff8a3d;
+}
+
+.releaseName {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.releaseSub,
+.releaseDate {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.releaseDate {
+  color: var(--text-muted);
+}
+
+.plHero {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  padding: 20px;
+  background: var(--surface);
+  border: 2px solid var(--green);
+  box-shadow: 6px 6px 0 var(--green);
+}
+
+.plHero img,
+.plHero .thumb {
+  width: 110px;
+  height: 110px;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.plHero h2 {
+  font-size: 26px;
+  margin: 6px 0;
+}
+
+.plHero small {
+  color: var(--text-secondary);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 12px;
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px;
+  background: var(--surface);
+  border: 2px solid var(--border-dim);
+  color: var(--text-secondary);
+  transition: var(--transition);
+}
+
+.tile:hover {
+  border-color: var(--green);
+  transform: translate(-2px, -2px);
+  box-shadow: 4px 4px 0 var(--green);
+}
+
+.tile strong {
+  font-size: 24px;
+  color: var(--text);
+}
+
+.tile span {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+}
+
+.panel {
+  padding: 20px;
+  background: var(--surface-2);
+  border: 2px solid var(--border-dim);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.panel h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.ok {
+  font-size: 13px;
+  color: var(--green);
+}
+
+.bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.barRow {
+  display: grid;
+  grid-template-columns: minmax(80px, 38%) 1fr 32px;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.barLabel {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.barTrack {
+  height: 12px;
+  background: var(--black);
+  border: 1px solid var(--border-dim);
+}
+
+.barFill {
+  height: 100%;
+  transform-origin: left;
+  animation: barGrow 0.8s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes barGrow {
+  from { transform: scaleX(0); }
+  to { transform: scaleX(1); }
+}
+
+.barValue {
+  text-align: right;
+  color: var(--text-secondary);
+  font-weight: 700;
+}
+
+.trackLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px;
+  border: 2px solid transparent;
+  transition: var(--transition);
+  min-width: 0;
+}
+
+.trackLine:hover {
+  border-color: var(--green);
+}
+
+.trackLine img,
+.thumb {
+  width: 36px;
+  height: 36px;
+  object-fit: cover;
+  background: var(--black);
+  flex-shrink: 0;
+}
+
+.trackMeta {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+
+.trackMeta span,
+.trackMeta small {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.trackMeta span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.trackMeta small {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+
+.trackExtra {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--yellow);
+  flex-shrink: 0;
+}
+
+.pilot {
+  display: flex;
+  gap: 18px;
+  padding: 20px;
+  background: var(--surface);
+  border: 2px solid var(--accent);
+  box-shadow: 6px 6px 0 var(--accent);
+  transition: opacity 0.2s, box-shadow 0.2s;
+}
+
+.pilotOff {
+  opacity: 0.55;
+  box-shadow: none;
+}
+
+.pilotIcon {
+  width: 52px;
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--black);
+  border: 2px solid var(--black);
+}
+
+.pilotBody {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.pilotHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.pilotHead h3 {
+  font-size: 18px;
+}
+
+.pilotDesc {
+  font-size: 13px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.pilotStatus {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.pilotActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.switch {
+  width: 52px;
+  height: 28px;
+  border: 2px solid var(--border);
+  background: var(--surface-2);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.2s;
+}
+
+.switch span {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background: var(--white);
+  transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.switchOn {
+  background: var(--accent);
+}
+
+.switchOn span {
+  transform: translateX(24px);
+  background: var(--black);
+}
+
+.pilotGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+}
+
+.pilotCard {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px;
+  text-align: left;
+  color: var(--text);
+  background: var(--surface);
+  border: 2px solid var(--border-dim);
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.18s, box-shadow 0.18s;
+}
+
+.pilotCard:hover:not(:disabled) {
+  border-color: var(--accent);
+  transform: translate(-3px, -3px);
+  box-shadow: 6px 6px 0 var(--accent);
+}
+
+.pilotCard strong {
+  font-size: 16px;
+  text-transform: uppercase;
+}
+
+.pilotCard span {
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.pilotCard small {
+  font-size: 11px;
+  color: var(--accent);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .segmented button {
+    flex: 1;
+    padding: 10px 6px;
+  }
+
+  .releaseGrid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+  }
+
+  .plHero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .pilot {
+    flex-direction: column;
+  }
+}

@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { Radio, Music2, ListMusic, Shuffle, Wand2, Star, Clock, BarChart2, Layers, History } from 'lucide-react'
+import { Radio, Music2, ListMusic, Shuffle, Wand2, Star, Clock, BarChart2, Layers, History, Radar, ScanSearch, Bot } from 'lucide-react'
 import styles from './DashboardPage.module.css'
 
 const FEATURES = [
@@ -72,6 +72,29 @@ const FEATURES = [
     description: 'Save your recently played, monthly, yearly or all-time favourites as a playlist.',
     to: '/rewind',
     accent: '#9b8cff',
+  },
+  {
+    icon: Radar,
+    title: 'Release Radar',
+    description: 'Fresh singles and albums from the artists you follow and play the most.',
+    to: '/release-radar',
+    accent: '#ff8a3d',
+    note: 'New',
+  },
+  {
+    icon: ScanSearch,
+    title: 'Playlist X-Ray',
+    description: 'Top artists, decades, duplicates and unplayable tracks of any playlist.',
+    to: '/playlist-xray',
+    accent: '#b8ff3c',
+    note: 'New',
+  },
+  {
+    icon: Bot,
+    title: 'Autopilot',
+    description: 'Daily Magic Mix, weekly Release Radar and monthly Rewind that refresh themselves.',
+    to: '/autopilot',
+    accent: '#00b4d8',
     note: 'New',
   },
 ]

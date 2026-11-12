@@ -13,6 +13,9 @@ import TrackStatsPage from './pages/TrackStatsPage'
 import StatsPage from './pages/StatsPage'
 import FusionCenterPage from './pages/FusionCenterPage'
 import RewindPage from './pages/RewindPage'
+import ReleaseRadarPage from './pages/ReleaseRadarPage'
+import PlaylistXrayPage from './pages/PlaylistXrayPage'
+import AutopilotPage from './pages/AutopilotPage'
 import Navbar from './components/Navbar'
 import Toast from './components/Toast'
 import { ToastContext } from './toast'
@@ -69,6 +72,9 @@ function App() {
         <Route path="/track-stats" element={authed(<TrackStatsPage />)} />
         <Route path="/stats" element={authed(<StatsPage />)} />
         <Route path="/rewind" element={authed(<RewindPage />)} />
+        <Route path="/release-radar" element={authed(<ReleaseRadarPage />)} />
+        <Route path="/playlist-xray" element={authed(<PlaylistXrayPage />)} />
+        <Route path="/autopilot" element={authed(<AutopilotPage />)} />
         <Route path="/callback" element={<CallbackPage />} />
         <Route path="*" element={<Navigate to={user ? '/dashboard' : '/'} replace />} />
       </Routes>

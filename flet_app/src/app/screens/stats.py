@@ -4,15 +4,45 @@ import flet as ft
 
 from app.api import ApiError
 from app.screens.registry import number_of
-from app.theme import BORDER_DIM, EASE, SPRING, SURFACE, TEXT_2, TEXT_3, WHITE
+from app.theme import BLACK, BORDER_DIM, EASE, GREEN, RED, SPRING, SURFACE, TEXT_2, TEXT_3, WHITE, YELLOW
 from app.ui.screen import Screen, header
 from app.ui.widgets import Segmented, border, compact, cover, empty_state, fill_meters, hard_shadow, meter, skeleton_rows, tag, txt
 
 RANGES = [("short_term", "4 weeks"), ("medium_term", "6 months"), ("long_term", "All time")]
 KINDS = [("tracks", "Tracks"), ("artists", "Artists"), ("genres", "Genres")]
+COMPARE = {"short_term": "medium_term", "medium_term": "long_term"}
+COMPARE_LABEL = {"short_term": "vs 6 months", "medium_term": "vs all time"}
 
 
-def rank_row(app, index: int, image: str | None, title: str, subtitle: str, score: float, accent: str, url: str | None, circle: bool = False) -> ft.Control:
+def change_badge(change: tuple[str, str] | None) -> ft.Control:
+    if not change:
+        return ft.Container(width=0)
+    text, color = change
+    return ft.Container(
+        txt(text, size=10, bold=True, color=BLACK),
+        bgcolor=color,
+        padding=ft.Padding.symmetric(horizontal=6, vertical=2),
+        scale=0,
+        animate_scale=ft.Animation(520, SPRING),
+        data="badge",
+    )
+
+
+def change_of(key: str, index: int, previous: dict[str, int] | None) -> tuple[str, str] | None:
+    if previous is None:
+        return None
+    before = previous.get(key)
+    if before is None:
+        return ("NEW", YELLOW)
+    delta = before - index
+    if delta > 0:
+        return (f"↑{delta}", GREEN)
+    if delta < 0:
+        return (f"↓{-delta}", RED)
+    return ("=", TEXT_3)
+
+
+def rank_row(app, index: int, image: str | None, title: str, subtitle: str, score: float, accent: str, url: str | None, circle: bool = False, change: tuple[str, str] | None = None) -> ft.Control:
     first = index == 0
 
     async def open_item(e):
@@ -27,7 +57,7 @@ def rank_row(app, index: int, image: str | None, title: str, subtitle: str, scor
                 cover(image, 64 if first else 48, edge=WHITE if first else None, circle=circle),
                 ft.Column(
                     [
-                        txt(title, size=15 if first else 13, bold=True, lines=1),
+                        ft.Row([txt(title, size=15 if first else 13, bold=True, lines=1, expand=True), change_badge(change)], spacing=8),
                         txt(subtitle, size=11, color=TEXT_2, lines=1),
                         meter(score, accent if index < 3 else TEXT_3, height=3, duration=900 + index * 40),
                     ],
@@ -46,7 +76,7 @@ def rank_row(app, index: int, image: str | None, title: str, subtitle: str, scor
     )
 
 
-def genre_row(index: int, name: str, count: int, top: int, accent: str) -> ft.Control:
+def genre_row(index: int, name: str, count: int, top: int, accent: str, change: tuple[str, str] | None = None) -> ft.Control:
     share = count / top if top else 0
     return ft.Container(
         ft.Column(
@@ -54,6 +84,7 @@ def genre_row(index: int, name: str, count: int, top: int, accent: str) -> ft.Co
                 ft.Row(
                     [
                         txt(name.upper(), size=13 if index else 16, bold=True, lines=1, expand=True),
+                        change_badge(change),
                         txt(f"×{count}", size=12, bold=True, color=accent if index < 3 else TEXT_2),
                     ],
                 ),
@@ -73,6 +104,22 @@ def artist_line(a: dict) -> str:
     return " · ".join(parts)
 
 
+def find_badges(root: ft.Control) -> list[ft.Control]:
+    found: list[ft.Control] = []
+    stack = [root]
+    while stack:
+        node = stack.pop()
+        if getattr(node, "data", None) == "badge":
+            found.append(node)
+        for attr in ("controls", "content"):
+            child = getattr(node, attr, None)
+            if isinstance(child, list):
+                stack.extend(child)
+            elif isinstance(child, ft.Control):
+                stack.append(child)
+    return found
+
+
 def build(app, feature, **_) -> ft.View:
     accent = feature.accent
     state = {"range": "medium_term", "kind": "tracks"}
@@ -81,32 +128,76 @@ def build(app, feature, **_) -> ft.View:
     summary = ft.Container(animate_opacity=ft.Animation(400, EASE), opacity=0)
     req = {"n": 0}
 
-    async def fetch(force: bool = False) -> dict | None:
-        key = (state["kind"], state["range"])
+    async def load(kind: str, time_range: str, force: bool = False) -> dict | None:
+        key = (kind, time_range)
         if key in cache and not force:
             return cache[key]
         try:
-            data = await app.api.top(state["kind"], state["range"], 50 if state["kind"] != "tracks" else 50)
+            data = await app.api.top(kind, time_range, 50)
         except ApiError as exc:
             app.toast(exc.message, "error")
             return None
         cache[key] = data
         return data
 
+    async def fetch(force: bool = False) -> dict | None:
+        other = COMPARE.get(state["range"])
+        jobs = [load(state["kind"], state["range"], force)]
+        if other:
+            jobs.append(load(state["kind"], other, force))
+        results = await asyncio.gather(*jobs)
+        data = results[0]
+        if data is None:
+            return None
+        previous = None
+        if other and results[1] is not None:
+            field = {"tracks": "tracks", "artists": "artists", "genres": "genres"}[state["kind"]]
+            ident = "name" if state["kind"] == "genres" else "id"
+            previous = {item[ident]: i for i, item in enumerate(results[1].get(field, []))}
+        return {**data, "_previous": previous}
+
     def build_list(data: dict) -> list[ft.Control]:
         kind = state["kind"]
+        previous = data.get("_previous")
         if kind == "tracks":
             items = data.get("tracks", [])
-            return [rank_row(app, i, t.get("image"), t["name"], ", ".join(t.get("artists", [])), (t.get("popularity") or 0) / 100, accent, t.get("url")) for i, t in enumerate(items)]
+            return [
+                rank_row(app, i, t.get("image"), t["name"], ", ".join(t.get("artists", [])), (t.get("popularity") or 0) / 100, accent, t.get("url"), change=change_of(t.get("id"), i, previous))
+                for i, t in enumerate(items)
+            ]
         if kind == "artists":
             items = data.get("artists", [])
             return [
-                rank_row(app, i, a.get("image"), a["name"], artist_line(a), (a.get("popularity") or 0) / 100, accent, a.get("url"), circle=True)
+                rank_row(app, i, a.get("image"), a["name"], artist_line(a), (a.get("popularity") or 0) / 100, accent, a.get("url"), circle=True, change=change_of(a.get("id"), i, previous))
                 for i, a in enumerate(items)
             ]
         items = data.get("genres", [])
         top = items[0]["count"] if items else 0
-        return [genre_row(i, g["name"], g["count"], top, accent) for i, g in enumerate(items)]
+        return [genre_row(i, g["name"], g["count"], top, accent, change_of(g["name"], i, previous)) for i, g in enumerate(items)]
+
+    def with_compare(base: ft.Control | None, data: dict) -> ft.Control | None:
+        previous = data.get("_previous")
+        label_text = COMPARE_LABEL.get(state["range"])
+        if previous is None or not label_text:
+            return base
+        field = state["kind"]
+        ident = "name" if field == "genres" else "id"
+        items = data.get(field, [])
+        changes = [change_of(item.get(ident), i, previous) for i, item in enumerate(items)]
+        fresh = sum(1 for c in changes if c and c[0] == "NEW")
+        up = sum(1 for c in changes if c and c[0].startswith("↑"))
+        down = sum(1 for c in changes if c and c[0].startswith("↓"))
+        line = ft.Row(
+            [
+                txt(label_text, size=10, color=TEXT_2, bold=True, upper=True, spacing=1),
+                txt(f"{fresh} new", size=10, color=YELLOW, bold=True, upper=True),
+                txt(f"{up} climbed", size=10, color=GREEN, bold=True, upper=True),
+                txt(f"{down} dropped", size=10, color=RED, bold=True, upper=True),
+            ],
+            spacing=12,
+            wrap=True,
+        )
+        return ft.Column([base, line], spacing=10) if base else line
 
     def build_summary(data: dict) -> ft.Control | None:
         kind = state["kind"]
@@ -172,7 +263,7 @@ def build(app, feature, **_) -> ft.View:
             c.animate_opacity = ft.Animation(260 + i * 45, EASE)
             c.animate_offset = ft.Animation(420 + i * 45, SPRING)
         body.content = column
-        summary.content = build_summary(data)
+        summary.content = with_compare(build_summary(data), data)
         view.update()
         await asyncio.sleep(0.03)
         for c in controls[:12]:
@@ -181,6 +272,13 @@ def build(app, feature, **_) -> ft.View:
         fill_meters(column)
         summary.opacity = 1
         view.update()
+        await asyncio.sleep(0.35)
+        for badge in find_badges(column):
+            badge.scale = 1
+        try:
+            view.update()
+        except Exception:
+            pass
 
     async def on_range(value):
         state["range"] = value

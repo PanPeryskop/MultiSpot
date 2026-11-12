@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import {
-  Music2, Shuffle, ListMusic, Wand2, Radio, LayoutGrid, LogOut, History
+  Music2, Shuffle, ListMusic, Wand2, Radio, LayoutGrid, LogOut, Bot
 } from 'lucide-react'
 import NowPlaying from './NowPlaying'
 import NowPlayingModal from './NowPlayingModal'
@@ -14,7 +14,7 @@ const NAV_LINKS = [
   { to: '/random-hub', icon: Shuffle, label: 'Random Hub' },
   { to: '/time-machine', icon: Music2, label: 'Time Machine' },
   { to: '/queue-setter', icon: ListMusic, label: 'Queue Setter' },
-  { to: '/rewind', icon: History, label: 'Rewind' },
+  { to: '/autopilot', icon: Bot, label: 'Autopilot' },
 ]
 
 export default function Navbar({ user }) {

@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel
 
 from services.client import Spotify, SpotifyError, authorize_url, exchange_code
+from services.store import store
 
 STATE_TTL = 600
 
@@ -78,6 +79,8 @@ async def me(request: Request):
         raise HTTPException(status_code=502, detail=exc.message) from exc
     if sp.changed:
         request.session["token_info"] = sp.token
+    if store.has_automations(user.get("id")):
+        store.save_user(user["id"], sp.token.get("refresh_token"))
     return _profile(user)
 
 

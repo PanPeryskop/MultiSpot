@@ -1,13 +1,32 @@
+import asyncio
 import random
 from datetime import datetime
 
 import flet as ft
 
 from app.screens.registry import FEATURES, Feature, number_of
-from app.theme import BLACK, BORDER_DIM, GREEN, GUTTER, RED, SPRING, SURFACE, TEXT_2, TEXT_3, WHITE, YELLOW
+from app.theme import BLACK, BORDER_DIM, EASE, GREEN, GUTTER, RED, SPRING, SURFACE, TEXT_2, TEXT_3, WHITE, YELLOW
 from app.ui.marquee import Marquee
+from app.ui.player import player_view
 from app.ui.screen import Screen
 from app.ui.widgets import BrutalButton, Pressable, border, cover, label, tag, txt
+
+
+SHORT = {
+    "stats": "STATS",
+    "random_hub": "CHAOS",
+    "fusion": "FUSE",
+    "time_machine": "80S",
+    "magic": "MAGIC",
+    "track_to_playlist": "RADIO",
+    "queue_setter": "QUEUE",
+    "shuffler": "SHUFFLE",
+    "track_stats": "X-RAY",
+    "release_radar": "RADAR",
+    "autopilot": "AUTO",
+    "playlist_xray": "SCAN",
+    "rewind": "REWIND",
+}
 
 
 def greeting() -> str:
@@ -146,31 +165,118 @@ def home_view(app) -> ft.View:
         ],
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )
-    headline = ft.Column(
-        [
-            txt("WHAT'S", size=46, bold=True, height=0.95),
-            ft.Row(
-                [
-                    txt("THE", size=46, bold=True, height=0.95),
-                    ft.Container(
-                        txt("MOVE?", size=46, bold=True, color=BLACK, height=0.95),
-                        bgcolor=YELLOW,
-                        padding=ft.Padding.symmetric(horizontal=6),
-                        rotate=ft.Rotate(-0.03),
-                    ),
-                ],
-                spacing=12,
-                tight=True,
-            ),
-        ],
-        spacing=2,
-        tight=True,
+    move_text = txt("MOVE?", size=46, bold=True, color=BLACK, height=0.95)
+    move_box = ft.Container(
+        move_text,
+        bgcolor=YELLOW,
+        padding=ft.Padding.symmetric(horizontal=6),
+        rotate=ft.Rotate(-0.03),
+        scale=1,
+        animate=ft.Animation(90, EASE),
+        animate_rotation=ft.Animation(220, SPRING),
+        animate_scale=ft.Animation(320, SPRING),
     )
+    rolling = {"on": False}
+
+    async def roll(e):
+        if rolling["on"]:
+            return
+        rolling["on"] = True
+        pick = random.choice(FEATURES)
+        steps = [0.05] * 9 + [0.08, 0.12, 0.17, 0.24]
+        for i, delay in enumerate(steps):
+            feature = pick if i == len(steps) - 1 else random.choice(FEATURES)
+            move_text.value = SHORT.get(feature.key, "MOVE") + "?"
+            move_box.bgcolor = feature.accent
+            move_box.rotate = ft.Rotate(0.05 if i % 2 else -0.06)
+            move_box.update()
+            app.select()
+            await asyncio.sleep(delay)
+        move_box.rotate = ft.Rotate(-0.03)
+        move_box.scale = 1.18
+        move_box.update()
+        app.boom()
+        await asyncio.sleep(0.45)
+        move_box.scale = 1
+        move_box.update()
+        app.go(pick.key)
+        await asyncio.sleep(0.6)
+        move_text.value = "MOVE?"
+        move_box.bgcolor = YELLOW
+        try:
+            move_box.update()
+        except Exception:
+            pass
+        rolling["on"] = False
+
+    headline = ft.Container(
+        ft.Column(
+            [
+                txt("WHAT'S", size=46, bold=True, height=0.95),
+                ft.Row(
+                    [txt("THE", size=46, bold=True, height=0.95), move_box],
+                    spacing=12,
+                    tight=True,
+                ),
+            ],
+            spacing=2,
+            tight=True,
+        ),
+        on_click=roll,
+    )
+
+    async def ticker_tap(e):
+        ticker.rotate = ft.Rotate(0.03)
+        ticker.scale = 1.04
+        ticker.update()
+        app.thud()
+        await asyncio.sleep(0.16)
+        ticker.rotate = ft.Rotate(-0.015)
+        ticker.scale = 1
+        ticker.update()
+        if app.player.track:
+            app.push(player_view(app))
+        else:
+            app.toast("Start Spotify on any device, then come back", "info")
+            await app.player.refresh()
+
     ticker = ft.Container(
-        Marquee("TAP A TOOL ✦ SWIPE THE PLAYER TO SKIP ✦ PULL TO REFRESH ✦ ", size=12, bgcolor=GREEN, seconds=16, height=30),
+        Marquee("TAP A TOOL ✦ PULL TO REFRESH ✦ YOUR SPOTIFY, SUPERCHARGED ✦ ", size=12, bgcolor=GREEN, seconds=18, height=30),
         border=ft.Border.symmetric(vertical=ft.BorderSide(2, WHITE)),
         margin=ft.Margin.symmetric(horizontal=-GUTTER),
         rotate=ft.Rotate(-0.015),
+        scale=1,
+        animate_rotation=ft.Animation(260, SPRING),
+        animate_scale=ft.Animation(260, SPRING),
+        on_click=ticker_tap,
+    )
+    def quick(icon: ft.IconData, text: str, color: str, action) -> ft.Control:
+        chip = Pressable(
+            ft.Container(
+                ft.Row([ft.Icon(icon, size=16, color=BLACK), txt(text, size=11, bold=True, upper=True, spacing=0.8, color=BLACK)], spacing=6, tight=True),
+                bgcolor=color,
+                border=border(BLACK),
+                padding=ft.Padding.symmetric(horizontal=12, vertical=9),
+            ),
+            on_press=action,
+            depth=3,
+            shadow=WHITE,
+            haptic=app.tap,
+        )
+        return chip
+
+    quick_row = ft.Container(
+        ft.Row(
+            [
+                quick(ft.Icons.AUTO_AWESOME, "More like this", GREEN, app.player.more_like_this),
+                quick(ft.Icons.RADAR, "Radar", YELLOW, lambda e: app.go("release_radar")),
+                quick(ft.Icons.SMART_TOY, "Autopilot", WHITE, lambda e: app.go("autopilot")),
+                quick(ft.Icons.QUERY_STATS, "X-ray now", RED, lambda e: app.go("track_stats", url=app.player.track_url) if app.player.track_url else app.toast("Nothing is playing", "error")),
+            ],
+            spacing=10,
+            scroll=ft.ScrollMode.HIDDEN,
+        ),
+        margin=ft.Margin.only(right=-GUTTER),
     )
     tiles: list[ft.Control] = [ft.Row([Tile(app, FEATURES[0], 0, wide=True)])]
     rest = FEATURES[1:]
@@ -181,10 +287,6 @@ def home_view(app) -> ft.View:
             tiles.append(ft.Row([Tile(app, pair[0], 0.012, wide=True, badge="New")]))
             continue
         tiles.append(ft.Row([Tile(app, f, rng.choice([-0.025, -0.015, 0.015, 0.025])) for f in pair], spacing=14, vertical_alignment=ft.CrossAxisAlignment.START))
-    footer_note = ft.Row(
-        [txt("MULTISPOT ✦ MOBILE", size=10, color=TEXT_3, bold=True), txt(f"{len(FEATURES)} TOOLS", size=10, color=TEXT_3, bold=True)],
-        alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
-    )
 
     async def refresh(e):
         app.thud()
@@ -197,7 +299,7 @@ def home_view(app) -> ft.View:
     return Screen(
         app,
         "/",
-        [top, headline, ticker, *tiles, footer_note],
+        [top, headline, ticker, quick_row, *tiles],
         accent=GREEN,
         on_refresh=refresh,
         wipe=False,

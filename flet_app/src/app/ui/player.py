@@ -10,6 +10,7 @@ from app.theme import BLACK, BORDER_DIM, EASE, EASE_SOFT, GREEN, SPRING, SURFACE
 from app.ui.widgets import IconSquare, border, cover, hard_shadow, label, mmss, spawn, txt
 
 POLL_SECONDS = 5
+RED_SOFT = "#FF5C7A"
 
 
 class PlayerStore:
@@ -21,6 +22,7 @@ class PlayerStore:
         self.synced_at = 0.0
         self.base_progress = 0
         self.listeners: set[Callable[[str], None]] = set()
+        self.added: set[str] = set()
         self.task: asyncio.Task | None = None
         self.paused = False
 
@@ -123,6 +125,35 @@ class PlayerStore:
         await asyncio.sleep(0.7)
         await self.refresh()
 
+    async def seek(self, position_ms: int):
+        if not self.track:
+            return
+        self.app.select()
+        self.base_progress = max(0, min(position_ms, self.track.get("duration_ms", 0)))
+        self.synced_at = time.monotonic()
+        self.emit("state")
+        try:
+            await self.app.api.seek(self.base_progress)
+        except ApiError as exc:
+            self.app.toast(_playback_error(exc), "error")
+        await asyncio.sleep(0.8)
+        await self.refresh()
+
+    async def more_like_this(self, *_):
+        if not self.track or self.track.get("type") == "episode":
+            self.app.toast("Play a song first", "error")
+            return
+        self.app.boom()
+        self.app.toast(f"Finding tracks like {self.track.get('name', 'this')}…", "info")
+        try:
+            data = await self.app.api.more_like_this(15)
+        except ApiError as exc:
+            self.app.toast(_playback_error(exc), "error")
+            return
+        self.added |= set(data.get("ids") or [])
+        self.app.toast(f"Added {data.get('added', 0)} similar tracks after your queue", "success")
+        self.emit("queue")
+
     async def jump(self, direction: int):
         if not self.track:
             return
@@ -139,6 +170,8 @@ class PlayerStore:
 def _playback_error(exc: ApiError) -> str:
     if exc.status >= 500 or exc.status == 404:
         return "No active Spotify device (Premium needed)"
+    if "restriction" in exc.message.lower():
+        return "Spotify blocked that right now, try again in a moment"
     return exc.message
 
 
@@ -208,6 +241,7 @@ class MiniPlayer(ft.GestureDetector):
         super().__init__(
             content=self.shell,
             on_tap=self._open,
+            on_long_press=self.store.more_like_this,
             on_horizontal_drag_end=self._swipe,
             mouse_cursor=ft.MouseCursor.CLICK,
         )
@@ -275,16 +309,16 @@ def player_view(app) -> ft.View:
     store = app.player
     backdrop = ft.Container(expand=True, animate_opacity=ft.Animation(600, EASE), opacity=0.55)
     vinyl_grooves = ft.Container(
-        width=300,
-        height=300,
+        width=262,
+        height=262,
         shape=ft.BoxShape.CIRCLE,
         gradient=ft.SweepGradient(
             colors=[BLACK, "#1A1A1A", BLACK, "#222222", BLACK, "#1A1A1A", BLACK],
         ),
         border=ft.Border.all(2, "#262626"),
         content=ft.Container(
-            width=96,
-            height=96,
+            width=84,
+            height=84,
             shape=ft.BoxShape.CIRCLE,
             bgcolor=GREEN,
             border=ft.Border.all(3, BLACK),
@@ -299,13 +333,31 @@ def player_view(app) -> ft.View:
         animate_rotation=ft.Animation(1000, ft.AnimationCurve.LINEAR),
         offset=ft.Offset(0, 0),
         animate_offset=ft.Animation(900, SPRING),
+        animate_scale=ft.Animation(260, SPRING),
+        scale=1,
     )
-    art_slot = ft.Container(width=280, height=280)
+    art_slot = ft.Container(width=256, height=256)
+    flash_icon = ft.Icon(ft.Icons.PAUSE, size=86, color=WHITE)
+    flash = ft.Container(
+        ft.Container(flash_icon, bgcolor=ft.Colors.with_opacity(0.55, BLACK), padding=18, border=border(WHITE)),
+        alignment=ft.Alignment.CENTER,
+        width=256,
+        height=256,
+        opacity=0,
+        scale=0.6,
+        animate_opacity=ft.Animation(260, EASE),
+        animate_scale=ft.Animation(420, SPRING),
+        ignore_interactions=True,
+    )
     art_box = ft.Container(
-        art_slot,
+        ft.Stack([art_slot, flash], width=256, height=256),
         shadow=hard_shadow(GREEN, 8),
         border=border(WHITE, 3),
         animate_scale=ft.Animation(500, SPRING),
+        animate_offset=ft.Animation(460, SPRING),
+        animate_rotation=ft.Animation(460, SPRING),
+        offset=ft.Offset(0, 0),
+        rotate=ft.Rotate(0),
         scale=1,
     )
     title = txt("", size=24, bold=True, lines=2, height=1.15)
@@ -316,13 +368,243 @@ def player_view(app) -> ft.View:
         animate_offset=ft.Animation(320, EASE_SOFT),
         animate_opacity=ft.Animation(260, EASE),
     )
-    progress = ProgressLine(height=6, track=SURFACE_2)
+    drag = {"on": False}
+
+    def seek_start(e):
+        drag["on"] = True
+        app.tap()
+
+    def seek_move(e):
+        if store.track:
+            elapsed.value = mmss(float(e.control.value or 0) * store.track.get("duration_ms", 0))
+            elapsed.color = GREEN
+            elapsed.update()
+
+    async def seek_end(e):
+        drag["on"] = False
+        elapsed.color = TEXT_2
+        if store.track:
+            await store.seek(int(float(e.control.value or 0) * store.track.get("duration_ms", 0)))
+
+    progress = ft.Slider(
+        value=0,
+        min=0,
+        max=1,
+        active_color=GREEN,
+        inactive_color=SURFACE_2,
+        thumb_color=WHITE,
+        overlay_color=ft.Colors.with_opacity(0.2, GREEN),
+        on_change_start=seek_start,
+        on_change=seek_move,
+        on_change_end=seek_end,
+        padding=ft.Padding.symmetric(horizontal=0, vertical=6),
+    )
     elapsed = txt("0:00", size=11, color=TEXT_2)
     total = txt("0:00", size=11, color=TEXT_2)
     play = IconSquare(ft.Icons.PLAY_ARROW, store.toggle, size=84, bg=GREEN, fg=BLACK, edge=BLACK, depth=6, icon_size=42)
     prev = IconSquare(ft.Icons.SKIP_PREVIOUS, lambda e: store.jump(-1), size=64, depth=4, icon_size=30)
     nxt = IconSquare(ft.Icons.SKIP_NEXT, lambda e: store.jump(1), size=64, depth=4, icon_size=30)
-    state = {"id": None, "spin": 0.0, "queue_req": 0}
+    state = {"id": None, "spin": 0.0, "queue_req": 0, "playing": False}
+    swipe = {"dx": 0.0}
+    scratch = {"on": False, "acc": 0.0, "base": 0, "pos": 0, "tick": 0}
+    scratch_ms_per_px = 120
+    bubble_time = txt("0:00", size=30, bold=True, color=WHITE, height=1)
+    bubble_delta = txt("±0s", size=13, bold=True, color=GREEN)
+    bubble = ft.Container(
+        ft.Container(
+            ft.Column([bubble_time, bubble_delta], spacing=2, tight=True, horizontal_alignment=ft.CrossAxisAlignment.CENTER),
+            bgcolor=ft.Colors.with_opacity(0.85, BLACK),
+            border=border(GREEN),
+            shadow=hard_shadow(GREEN, 4),
+            padding=ft.Padding.symmetric(horizontal=18, vertical=10),
+        ),
+        alignment=ft.Alignment.CENTER,
+        width=256,
+        height=256,
+        opacity=0,
+        scale=0.7,
+        animate_opacity=ft.Animation(180, EASE),
+        animate_scale=ft.Animation(320, SPRING),
+        ignore_interactions=True,
+    )
+
+    def art_drag(e: ft.DragUpdateEvent):
+        swipe["dx"] += e.primary_delta or 0
+        art_box.animate_offset = None
+        art_box.animate_rotation = None
+        art_box.offset = ft.Offset(swipe["dx"] / 262, 0)
+        art_box.rotate = ft.Rotate(swipe["dx"] / 262 * 0.22)
+        art_box.update()
+
+    async def art_release(e: ft.DragEndEvent):
+        dx, swipe["dx"] = swipe["dx"], 0.0
+        velocity = e.primary_velocity or 0
+        direction = 1 if (dx < -110 or (dx < -60 and velocity < -900)) else -1 if (dx > 110 or (dx > 60 and velocity > 900)) else 0
+        if direction and store.track:
+            art_box.animate_offset = ft.Animation(240, EASE)
+            art_box.animate_rotation = ft.Animation(240, EASE)
+            art_box.offset = ft.Offset(-1.5 * direction, 0)
+            art_box.rotate = ft.Rotate(-0.35 * direction)
+            art_box.update()
+            await asyncio.sleep(0.22)
+            art_box.animate_offset = None
+            art_box.animate_rotation = None
+            art_box.offset = ft.Offset(1.5 * direction, 0)
+            art_box.rotate = ft.Rotate(0.35 * direction)
+            art_box.update()
+            spawn(store.jump(direction))
+            await asyncio.sleep(0.05)
+        art_box.animate_offset = ft.Animation(520, SPRING)
+        art_box.animate_rotation = ft.Animation(520, SPRING)
+        art_box.offset = ft.Offset(0, 0)
+        art_box.rotate = ft.Rotate(0)
+        art_box.update()
+
+    async def art_double(e):
+        if not store.track:
+            return
+        flash_icon.icon = ft.Icons.PAUSE if store.is_playing else ft.Icons.PLAY_ARROW
+        spawn(store.toggle())
+        flash.opacity = 1
+        flash.scale = 1
+        art_box.scale = 0.92
+        art_box.update()
+        await asyncio.sleep(0.16)
+        art_box.scale = 1
+        art_box.update()
+        await asyncio.sleep(0.45)
+        flash.opacity = 0
+        flash.scale = 0.6
+        flash.update()
+
+    def bubble_show(on: bool):
+        bubble.opacity = 1 if on else 0
+        bubble.scale = 1 if on else 0.7
+        vinyl.scale = 1.05 if on else 1
+        bubble.update()
+        vinyl.update()
+
+    def scratch_start(e: ft.DragStartEvent):
+        if not store.track:
+            return
+        scratch.update(on=True, acc=0.0, base=store.progress_ms, pos=store.progress_ms, tick=0)
+        drag["on"] = True
+        vinyl.animate_rotation = None
+        bubble_time.value = mmss(store.progress_ms)
+        bubble_delta.value = "±0s"
+        bubble_show(True)
+        app.thud()
+
+    def scratch_move(e: ft.DragUpdateEvent):
+        if not scratch["on"] or not store.track:
+            return
+        step = e.primary_delta
+        if step is None and e.local_delta:
+            step = e.local_delta.y
+        step = step or 0
+        scratch["acc"] += step
+        duration = store.track.get("duration_ms", 0) or 1
+        scratch["pos"] = int(max(0, min(duration - 1500, scratch["base"] + scratch["acc"] * scratch_ms_per_px)))
+        shift = (scratch["pos"] - scratch["base"]) // 1000
+        if shift // 5 != scratch["tick"]:
+            scratch["tick"] = shift // 5
+            app.select()
+        vinyl.rotate = ft.Rotate(state["spin"] + scratch["acc"] / 60)
+        elapsed.value = mmss(scratch["pos"])
+        elapsed.color = GREEN
+        progress.value = scratch["pos"] / duration
+        bubble_time.value = mmss(scratch["pos"])
+        bubble_delta.value = f"{'+' if shift >= 0 else '−'}{abs(shift)}s"
+        bubble_delta.color = GREEN if shift >= 0 else RED_SOFT
+        vinyl.update()
+        elapsed.update()
+        progress.update()
+        bubble.update()
+
+    async def scratch_end(e):
+        if not scratch["on"]:
+            return
+        scratch["on"] = False
+        drag["on"] = False
+        state["spin"] += scratch["acc"] / 60
+        vinyl.animate_rotation = ft.Animation(1000, ft.AnimationCurve.LINEAR)
+        elapsed.color = TEXT_2
+        bubble_show(False)
+        if abs(scratch["pos"] - scratch["base"]) >= 1000:
+            app.boom()
+            await store.seek(scratch["pos"])
+
+    def track_sheet(t: dict):
+        link = t.get("url")
+
+        async def act(kind: str):
+            app.page.pop_dialog()
+            if not link:
+                return
+            if kind == "xray":
+                app.go("track_stats", url=link)
+            elif kind == "radio":
+                app.go("track_to_playlist", url=link)
+            elif kind == "open":
+                await app.open_url(link)
+            else:
+                app.toast(f"Finding tracks like {t.get('name', 'this')}…", "info")
+                try:
+                    data = await app.api.more_like_this(15, link)
+                except ApiError as exc:
+                    app.toast(_playback_error(exc), "error")
+                    return
+                store.added |= set(data.get("ids") or [])
+                app.toast(f"Added {data.get('added', 0)} similar tracks after your queue", "success")
+                spawn(load_queue())
+
+        def option(icon: ft.IconData, text: str, color: str, kind: str) -> ft.Control:
+            async def tapped(e):
+                app.tap()
+                await act(kind)
+
+            return ft.Container(
+                ft.Row(
+                    [
+                        ft.Container(ft.Icon(icon, size=18, color=BLACK), width=38, height=38, bgcolor=color, border=border(BLACK), alignment=ft.Alignment.CENTER),
+                        txt(text, size=13, bold=True, upper=True, spacing=0.8, expand=True),
+                        ft.Icon(ft.Icons.CHEVRON_RIGHT, color=TEXT_3, size=20),
+                    ],
+                    spacing=14,
+                ),
+                padding=ft.Padding.symmetric(vertical=8),
+                ink=True,
+                on_click=tapped,
+            )
+
+        sheet = ft.BottomSheet(
+            ft.Container(
+                ft.Column(
+                    [
+                        ft.Row(
+                            [
+                                ft.Container(cover(t.get("image"), 60, edge=WHITE), shadow=hard_shadow(GREEN, 4)),
+                                ft.Column([txt(t.get("name", ""), size=16, bold=True, lines=2), txt(", ".join(t.get("artists") or []), size=12, color=TEXT_2, lines=1)], spacing=4, tight=True, expand=True),
+                            ],
+                            spacing=14,
+                        ),
+                        ft.Container(height=1, bgcolor=BORDER_DIM),
+                        option(ft.Icons.AUTO_AWESOME, "Queue more like this", GREEN, "more"),
+                        option(ft.Icons.RADIO, "Build a radio from it", "#8F87FF", "radio"),
+                        option(ft.Icons.QUERY_STATS, "X-ray this track", "#B8F25C", "xray"),
+                        option(ft.Icons.OPEN_IN_NEW, "Open in Spotify", WHITE, "open"),
+                    ],
+                    spacing=10,
+                    tight=True,
+                ),
+                padding=ft.Padding.only(left=22, right=22, top=22, bottom=30),
+                border=ft.Border.only(top=ft.BorderSide(2, GREEN)),
+            ),
+            bgcolor=SURFACE,
+            shape=ft.RoundedRectangleBorder(radius=0),
+        )
+        app.thud()
+        app.page.show_dialog(sheet)
     upnext = ft.Column(spacing=2)
     upnext_box = ft.Container(animate_size=ft.Animation(420, EASE), clip_behavior=ft.ClipBehavior.HARD_EDGE)
 
@@ -336,7 +618,7 @@ def player_view(app) -> ft.View:
             data = {}
         if token != state["queue_req"]:
             return
-        items = (data.get("queue") or [])[:6]
+        items = (data.get("queue") or [])[:20]
         rows = []
         for i, t in enumerate(items):
             row = ft.Container(
@@ -344,19 +626,23 @@ def player_view(app) -> ft.View:
                     [
                         txt(f"{i + 1:02d}", size=10, bold=True, color=GREEN, width=22),
                         cover(t.get("image"), 36, edge=None),
+                        *([ft.Container(txt("+", size=12, bold=True, color=BLACK), bgcolor=GREEN, width=18, height=18, alignment=ft.Alignment.CENTER)] if t.get("id") in store.added else []),
                         ft.Column([txt(t.get("name", ""), size=12, bold=True, lines=1), txt(", ".join(t.get("artists") or []), size=10, color=TEXT_2, lines=1)], spacing=1, tight=True, expand=True),
                     ],
                     spacing=10,
                 ),
-                padding=ft.Padding.symmetric(vertical=4),
+                padding=ft.Padding.symmetric(vertical=4, horizontal=4),
                 opacity=0,
                 offset=ft.Offset(0.2, 0),
                 animate_opacity=ft.Animation(260, EASE),
                 animate_offset=ft.Animation(420, EASE_SOFT),
+                ink=True,
+                on_click=lambda e, t=t: track_sheet(t),
+                on_long_press=lambda e, t=t: track_sheet(t),
             )
             rows.append(row)
         upnext.controls = rows
-        upnext_box.content = ft.Column([label("Up next", GREEN), upnext], spacing=10) if rows else None
+        upnext_box.content = ft.Column([ft.Row([label("Up next", GREEN), txt("tap for options", size=10, color=TEXT_3)], alignment=ft.MainAxisAlignment.SPACE_BETWEEN), upnext], spacing=10) if rows else None
         try:
             view.update()
         except Exception:
@@ -380,7 +666,7 @@ def player_view(app) -> ft.View:
             return
         if track and track["id"] != state["id"]:
             state["id"] = track["id"]
-            art_slot.content = ft.Hero(tag="np-art", content=cover(track.get("image"), 280, edge=None))
+            art_slot.content = ft.Hero(tag="np-art", content=cover(track.get("image"), 256, edge=None))
             backdrop.image = ft.DecorationImage(src=track["image"], fit=ft.BoxFit.COVER) if track.get("image") else None
             title.value = track["name"]
             artists.value = ", ".join(track.get("artists", []))
@@ -396,12 +682,22 @@ def player_view(app) -> ft.View:
             album.value = ""
         playing = store.is_playing
         play.set_icon(ft.Icons.PAUSE if playing else ft.Icons.PLAY_ARROW)
-        vinyl.offset = ft.Offset(0.32 if playing else 0.0, 0)
-        if playing:
-            state["spin"] += math.pi * 0.66
-            vinyl.rotate = ft.Rotate(state["spin"])
-        progress.show(store.fraction, smooth=reason == "tick")
-        elapsed.value = mmss(store.progress_ms)
+        vinyl.offset = ft.Offset(0.27 if playing else 0.2, 0)
+        if not scratch["on"]:
+            if playing:
+                vinyl.animate_rotation = ft.Animation(1000, ft.AnimationCurve.LINEAR if state["playing"] else ft.AnimationCurve.EASE_IN)
+                state["spin"] += math.pi * 0.66
+                vinyl.rotate = ft.Rotate(state["spin"])
+            elif state["playing"]:
+                vinyl.animate_rotation = ft.Animation(1600, ft.AnimationCurve.DECELERATE)
+                state["spin"] += math.pi * 0.55
+                vinyl.rotate = ft.Rotate(state["spin"])
+        state["playing"] = playing
+        if reason == "queue":
+            spawn(load_queue())
+        if not drag["on"]:
+            progress.value = max(0.0, min(1.0, store.fraction))
+            elapsed.value = mmss(store.progress_ms)
         try:
             view.update()
         except Exception:
@@ -430,11 +726,47 @@ def player_view(app) -> ft.View:
         alignment=ft.MainAxisAlignment.SPACE_BETWEEN,
     )
     disc = ft.Container(
-        ft.Stack([ft.Container(vinyl, left=-10, top=-10), art_box], width=300, height=300, clip_behavior=ft.ClipBehavior.NONE),
+        ft.Stack(
+            [
+                ft.Container(vinyl, left=0, top=1),
+                ft.GestureDetector(
+                    content=ft.Container(bgcolor=ft.Colors.TRANSPARENT, width=338, height=268),
+                    on_vertical_drag_start=scratch_start,
+                    on_vertical_drag_update=scratch_move,
+                    on_vertical_drag_end=scratch_end,
+                    on_horizontal_drag_start=scratch_start,
+                    on_horizontal_drag_update=scratch_move,
+                    on_horizontal_drag_end=scratch_end,
+                    drag_interval=16,
+                    left=0,
+                    top=0,
+                ),
+                ft.GestureDetector(
+                    content=art_box,
+                    on_horizontal_drag_update=art_drag,
+                    on_horizontal_drag_end=art_release,
+                    on_double_tap=art_double,
+                    drag_interval=16,
+                ),
+                ft.Container(bubble, left=0, top=0, ignore_interactions=True),
+            ],
+            width=338,
+            height=268,
+            clip_behavior=ft.ClipBehavior.NONE,
+        ),
         alignment=ft.Alignment.CENTER,
-        padding=ft.Padding.only(right=60),
     )
     controls = ft.Row([prev, play, nxt], alignment=ft.MainAxisAlignment.CENTER, spacing=22, vertical_alignment=ft.CrossAxisAlignment.CENTER)
+    more_btn = ft.Container(
+        ft.Row([ft.Icon(ft.Icons.AUTO_AWESOME, color=BLACK, size=16), txt("More like this", size=11, bold=True, upper=True, spacing=1, color=BLACK)], spacing=8, tight=True),
+        on_click=store.more_like_this,
+        padding=ft.Padding.symmetric(vertical=10, horizontal=14),
+        bgcolor=GREEN,
+        border=border(BLACK),
+        shadow=hard_shadow(WHITE, 3),
+        animate_scale=ft.Animation(160, SPRING),
+        on_hover=lambda e: (setattr(e.control, "scale", 1.05 if e.data in (True, "true") else 1), e.control.update()),
+    )
     analyze_btn = ft.Container(
         ft.Row([ft.Icon(ft.Icons.QUERY_STATS, color=TEXT_2, size=16), label("Analyze this track")], spacing=8, tight=True),
         on_click=analyze,
@@ -450,7 +782,7 @@ def player_view(app) -> ft.View:
             meta,
             ft.Column([progress, ft.Row([elapsed, total], alignment=ft.MainAxisAlignment.SPACE_BETWEEN)], spacing=8),
             controls,
-            ft.Row([analyze_btn], alignment=ft.MainAxisAlignment.CENTER),
+            ft.Row([analyze_btn, more_btn], alignment=ft.MainAxisAlignment.CENTER, spacing=10, wrap=True),
             upnext_box,
         ],
         spacing=22,

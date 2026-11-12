@@ -14,8 +14,12 @@ certifi==2026.10.23
     # via
     #   httpcore
     #   httpx
+cffi==2.1.1 ; platform_python_implementation != 'PyPy'
+    # via cryptography
 click==8.5.1
     # via uvicorn
+cryptography==50.0.2
+    # via multispot-backend
 fastapi==0.162.5
     # via multispot-backend
 h11==0.16.0
@@ -36,6 +40,8 @@ itsdangerous==2.2.0
     # via multispot-backend
 opentelemetry-api==1.45.2
     # via fastapi
+pycparser==3.12 ; implementation_name != 'PyPy' and platform_python_implementation != 'PyPy'
+    # via cffi
 pydantic==2.14.3
     # via fastapi
 pydantic-core==2.50.4
@@ -60,6 +66,8 @@ typing-inspection==0.4.5
     # via
     #   fastapi
     #   pydantic
+tzdata==2026.6
+    # via multispot-backend
 uvicorn==0.54.0
     # via multispot-backend
 uvloop==0.23.0 ; platform_python_implementation != 'PyPy' and sys_platform != 'cygwin' and sys_platform != 'win32'

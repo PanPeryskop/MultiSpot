@@ -128,7 +128,63 @@
 .progressFill {
   height: 100%;
   background: var(--green);
-  transition: width 1s linear;
+  transition: width 0.25s linear;
+}
+
+.seek {
+  position: relative;
+  width: 100%;
+  padding: 10px 0;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.seekTrack {
+  height: 6px;
+  background: var(--border-dim);
+  border: 1px solid var(--black);
+  transition: height 0.15s;
+}
+
+.seek:hover .seekTrack,
+.seeking .seekTrack {
+  height: 10px;
+}
+
+.seekThumb {
+  position: absolute;
+  top: 50%;
+  width: 14px;
+  height: 22px;
+  background: var(--white);
+  border: 2px solid var(--black);
+  box-shadow: 2px 2px 0 var(--green);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1);
+  pointer-events: none;
+}
+
+.seek:hover .seekThumb,
+.seeking .seekThumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.timeActive {
+  color: var(--green);
+  font-weight: 700;
+}
+
+.moreBtn {
+  width: 100%;
+}
+
+.artworkIn {
+  animation: artIn 0.45s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes artIn {
+  from { opacity: 0; transform: scale(0.9) rotate(-2deg); }
+  to { opacity: 1; transform: none; }
 }
 
 .timeRow {

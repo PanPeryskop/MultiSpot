@@ -4,6 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
+from services import discover, xray
 from services import spotify as svc
 from services.client import Spotify, SpotifyError
 
@@ -181,3 +182,42 @@ async def rewind(request: Request, body: RewindRequest):
 @router.get("/queue")
 async def queue(request: Request):
     return await run(request, svc.get_queue)
+
+
+class MoreLikeThisRequest(BaseModel):
+    count: int = Field(15, ge=5, le=50)
+    track_url: str | None = None
+
+
+class ReleaseRadarRequest(BaseModel):
+    days: int = Field(14, ge=1, le=60)
+    playlist_name: str | None = Field(None, max_length=100)
+
+
+@router.post("/more-like-this")
+async def more_like_this(request: Request, body: MoreLikeThisRequest):
+    return await run(request, lambda sp: discover.more_like_this(sp, body.count, body.track_url))
+
+
+@router.get("/release-radar")
+async def release_radar(request: Request, days: int = Query(14, ge=1, le=60)):
+    return await run(request, lambda sp: discover.release_radar(sp, days))
+
+
+@router.post("/release-radar")
+async def release_radar_playlist(request: Request, body: ReleaseRadarRequest):
+    return await run(request, lambda sp: discover.create_release_radar_playlist(sp, body.days, body.playlist_name))
+
+
+@router.get("/playlist-xray")
+async def playlist_xray(request: Request, playlist_url: str = Query(min_length=1)):
+    return await run(request, lambda sp: xray.playlist_xray(sp, playlist_url))
+
+
+class SeekRequest(BaseModel):
+    position_ms: int = Field(ge=0)
+
+
+@router.post("/playback-seek")
+async def playback_seek(request: Request, body: SeekRequest):
+    return await run(request, lambda sp: svc.seek(sp, body.position_ms))

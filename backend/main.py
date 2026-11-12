@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import secrets
@@ -8,7 +9,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
-from routers import auth, spotify
+from routers import auth, autopilot, spotify
+from services.autopilot import scheduler
 from services.client import close_http
 
 load_dotenv()
@@ -18,14 +20,20 @@ log = logging.getLogger("multispot")
 secret = os.getenv("SESSION_SECRET_KEY")
 if not secret:
     secret = secrets.token_urlsafe(48)
-    log.warning("SESSION_SECRET_KEY is not set, sessions will not survive a restart")
+    os.environ["SESSION_SECRET_KEY"] = secret
+    log.warning("SESSION_SECRET_KEY is not set, sessions and autopilots will not survive a restart")
 
 origins = [o.strip() for o in os.getenv("FRONTEND_URL", "http://localhost:5173").split(",") if o.strip()]
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    task = None
+    if os.getenv("MULTISPOT_AUTOPILOT", "1").lower() not in ("0", "false", "no"):
+        task = asyncio.create_task(scheduler())
     yield
+    if task:
+        task.cancel()
     await close_http()
 
 
@@ -48,6 +56,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/auth", tags=["auth"])
+app.include_router(autopilot.router, prefix="/api/autopilot", tags=["autopilot"])
 app.include_router(spotify.router, prefix="/api", tags=["spotify"])
 
 

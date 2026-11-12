@@ -3,9 +3,11 @@ name = "multispot-backend"
 version = "0.2.0"
 requires-python = ">=3.13"
 dependencies = [
+    "cryptography>=46.0.0",
     "fastapi>=0.162.5",
     "httpx>=0.28.1",
     "itsdangerous>=2.2.0",
     "python-dotenv>=1.2.4",
+    "tzdata>=2026.6",
     "uvicorn[standard]>=0.54.0",
 ]

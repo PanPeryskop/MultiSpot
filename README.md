@@ -14,7 +14,10 @@ Spotify toolkit - FastAPI (backend), React/Vite (web) and Flet (mobile).
 - **Track X-Ray** - release info, album tracklist, popularity, artist discography and top tracks
 - **Stats Hub** - top tracks, artists and genres by time range
 - **Rewind** - save recently played or top tracks of a period as a playlist
-- **Now Playing** - live player with controls and the upcoming queue
+- **Release Radar** - new singles and albums from the artists you follow and play the most
+- **Playlist X-Ray** - top artists, decades, duplicates and unplayable tracks of any playlist
+- **Autopilot** - Daily Magic Mix, weekly Release Radar and monthly Rewind refreshed on a schedule
+- **Now Playing** - live player with seeking, the upcoming queue and "More like this"
 
 ## How recommendations work
 
@@ -47,6 +50,9 @@ SESSION_SECRET_KEY=<long random string>
 FRONTEND_URL=http://localhost:5173
 SESSION_HTTPS_ONLY=false
 ```
+
+Optional: `MULTISPOT_DB` (Autopilot database, default `~/.multispot/multispot.db`), `MULTISPOT_TZ` (schedule timezone, default `Europe/Warsaw`), `MULTISPOT_AUTOPILOT=0` to disable the scheduler.
+Autopilot stores refresh tokens encrypted with a key derived from `SESSION_SECRET_KEY`, so keep that key stable.
 
 `FRONTEND_URL` accepts a comma separated list of allowed origins. Set `SESSION_HTTPS_ONLY=true` when serving over HTTPS.
 Without `SESSION_SECRET_KEY` a random key is generated on start and every restart logs everyone out.

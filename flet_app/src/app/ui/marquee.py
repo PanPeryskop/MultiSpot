@@ -1,4 +1,5 @@
 import asyncio
+import math
 
 import flet as ft
 
@@ -28,19 +29,19 @@ class Marquee(ft.Container):
         self.sway = sway
         self.intro_delay = intro_delay
         self.tasks: list[asyncio.Task] = []
-        width = len(phrase) * size * GLYPH
-        copies = [
-            ft.Container(ft.Text(phrase, size=size, color=color, font_family=FONT_BOLD, no_wrap=True), width=width)
-            for _ in range(3)
-        ]
+        phrase = phrase if phrase.rstrip().endswith("✦") else phrase.rstrip() + " ✦ "
+        if not phrase.endswith(" "):
+            phrase += " "
+        estimate = max(1.0, len(phrase) * size * GLYPH)
+        self.count = max(3, math.ceil(4200 / estimate) + 1)
+        copies = [ft.Text(phrase, size=size, color=color, font_family=FONT_BOLD, no_wrap=True) for _ in range(self.count)]
         self.track = ft.Container(
-            ft.Row(copies, spacing=0),
-            width=width * 3,
+            ft.Row(copies, spacing=0, tight=True),
             left=0,
             top=0,
             bottom=0,
             alignment=ft.Alignment.CENTER_LEFT,
-            offset=ft.Offset(-1 / 3 if reverse else 0, 0),
+            offset=ft.Offset(-1 / self.count if reverse else 0, 0),
         )
         intro = intro_delay is not None
         super().__init__(
@@ -65,7 +66,8 @@ class Marquee(ft.Container):
             task.cancel()
 
     async def _scroll(self):
-        start, end = (-1 / 3, 0.0) if self.reverse else (0.0, -1 / 3)
+        step = 1 / self.count
+        start, end = (-step, 0.0) if self.reverse else (0.0, -step)
         while True:
             self.track.animate_offset = None
             self.track.offset = ft.Offset(start, 0)

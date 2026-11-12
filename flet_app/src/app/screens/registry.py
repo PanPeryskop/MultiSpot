@@ -3,7 +3,7 @@ from dataclasses import dataclass
 
 import flet as ft
 
-from app.theme import CYAN, GOLD, GREEN, LIME, MINT, ORANGE, PINK, PURPLE, YELLOW
+from app.theme import CORAL, CYAN, GOLD, GREEN, LIME, MINT, ORANGE, PINK, PURPLE, SKY, VIOLET, YELLOW
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,9 @@ FEATURES = [
     Feature("queue_setter", "Queue Setter", "Interleave playlists into a queue.", ft.Icons.QUEUE_MUSIC, ORANGE, "queue_setter"),
     Feature("shuffler", "True Shuffle", "Recreate a playlist in real random order.", ft.Icons.SHUFFLE, PINK, "shuffler"),
     Feature("track_stats", "Track X-Ray", "Deep stats for any single track.", ft.Icons.QUERY_STATS, LIME, "track_stats"),
+    Feature("release_radar", "Release Radar", "Fresh drops from your artists.", ft.Icons.RADAR, CORAL, "release_radar"),
+    Feature("autopilot", "Autopilot", "Playlists that refresh themselves.", ft.Icons.SMART_TOY, VIOLET, "autopilot"),
+    Feature("playlist_xray", "Playlist X-Ray", "Artists, decades and dupes of a playlist.", ft.Icons.DOCUMENT_SCANNER, SKY, "playlist_xray"),
     Feature("rewind", "Rewind", "Save your top or recent plays as a playlist.", ft.Icons.HISTORY, PURPLE, "rewind"),
 ]
 

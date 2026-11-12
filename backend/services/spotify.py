@@ -268,7 +268,7 @@ async def _recent(sp: Spotify) -> dict:
         return {}
 
 
-async def create_magic_playlist(sp: Spotify, playlist_name: str, track_count: int) -> dict:
+async def build_magic_tracks(sp: Spotify, track_count: int) -> tuple[list[dict], list[str]]:
     short_a, medium_a, short_t, medium_t, recent = await asyncio.gather(
         _top(sp, "artists", "short_term", 20),
         _top(sp, "artists", "medium_term", 30),
@@ -303,8 +303,13 @@ async def create_magic_playlist(sp: Spotify, playlist_name: str, track_count: in
     if len(mix) < track_count:
         more = await engine.build(seeds, track_count - len(mix), exclude=set(tracks) | {t["id"] for t in mix}, seed_share=0.5)
         mix += more
-    result = await _save_playlist(sp, playlist_name, mix[:track_count], "Magic Mix")
-    result["seeds"] = [a["name"] for a in chosen_artists] + [t["name"] for t in chosen_tracks]
+    return mix[:track_count], [a["name"] for a in chosen_artists] + [t["name"] for t in chosen_tracks]
+
+
+async def create_magic_playlist(sp: Spotify, playlist_name: str, track_count: int) -> dict:
+    mix, seeds = await build_magic_tracks(sp, track_count)
+    result = await _save_playlist(sp, playlist_name, mix, "Magic Mix")
+    result["seeds"] = seeds
     return result
 
 
@@ -625,7 +630,7 @@ REWIND_SOURCES = {
 }
 
 
-async def create_rewind_playlist(sp: Spotify, source: str, playlist_name: str | None, count: int) -> dict:
+async def rewind_tracks(sp: Spotify, source: str, count: int) -> list[dict]:
     if source == "recent":
         data = await sp.get("/me/player/recently-played", limit=50)
         tracks = [t for t in (track_of(i) for i in data.get("items") or []) if t]
@@ -643,6 +648,11 @@ async def create_rewind_playlist(sp: Spotify, source: str, playlist_name: str | 
     picked = list(unique.values())[:count]
     if not picked:
         raise ValueError("Nothing to rewind yet, listen to some music first.")
+    return picked
+
+
+async def create_rewind_playlist(sp: Spotify, source: str, playlist_name: str | None, count: int) -> dict:
+    picked = await rewind_tracks(sp, source, count)
     return await _save_playlist(sp, playlist_name or "", picked, f"Rewind: {REWIND_SOURCES[source]}")
 
 
@@ -653,4 +663,10 @@ async def get_queue(sp: Spotify) -> dict:
     return {
         "current": track_card(current) if current and current.get("type", "track") == "track" else None,
         "queue": [track_card(t) for t in upcoming[:30]],
+        "note": "Spotify only lets apps append to the queue, so new tracks play after your queued ones and before the rest of the playlist.",
     }
+
+
+async def seek(sp: Spotify, position_ms: int) -> dict:
+    await sp.put("/me/player/seek", position_ms=position_ms)
+    return {"position_ms": position_ms}

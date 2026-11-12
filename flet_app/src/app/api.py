@@ -139,6 +139,36 @@ class Api:
     async def queue(self) -> dict:
         return await self.get("/api/queue")
 
+    async def seek(self, position_ms: int) -> dict:
+        return await self.post("/api/playback-seek", {"position_ms": position_ms})
+
+    async def more_like_this(self, count: int = 15, track_url: str | None = None) -> dict:
+        return await self.post("/api/more-like-this", {"count": count, "track_url": track_url})
+
+    async def release_radar(self, days: int) -> dict:
+        return await self.get("/api/release-radar", days=days)
+
+    async def save_release_radar(self, days: int, playlist_name: str | None = None) -> dict:
+        return await self.post("/api/release-radar", {"days": days, "playlist_name": playlist_name})
+
+    async def playlist_xray(self, playlist_url: str) -> dict:
+        return await self.get("/api/playlist-xray", playlist_url=playlist_url)
+
+    async def autopilots(self) -> dict:
+        return await self.get("/api/autopilot")
+
+    async def create_autopilot(self, kind: str) -> dict:
+        return await self.post("/api/autopilot", {"kind": kind})
+
+    async def run_autopilot(self, automation_id: int) -> dict:
+        return await self.post(f"/api/autopilot/{automation_id}/run")
+
+    async def toggle_autopilot(self, automation_id: int, enabled: bool) -> dict:
+        return await self.request("PATCH", f"/api/autopilot/{automation_id}", json={"enabled": enabled})
+
+    async def delete_autopilot(self, automation_id: int) -> dict:
+        return await self.request("DELETE", f"/api/autopilot/{automation_id}")
+
     async def queue_setter(self, playlist_urls: list[str]) -> dict:
         return await self.post("/api/queue-setter", {"playlist_urls": playlist_urls})
 

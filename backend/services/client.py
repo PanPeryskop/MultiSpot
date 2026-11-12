@@ -21,6 +21,7 @@ SCOPE = " ".join(
         "user-read-currently-playing",
         "user-read-recently-played",
         "user-top-read",
+        "user-follow-read",
     ]
 )
 
@@ -237,16 +238,18 @@ class Spotify:
             offset += step
         return out
 
-    async def playlist_items(self, playlist_id: str, limit: int | None = None, offset: int = 0) -> list[dict]:
+    async def playlist_entries(self, playlist_id: str, limit: int | None = None, offset: int = 0, market: str | None = None) -> tuple[list[dict], int]:
         out: list[dict] = []
+        skipped = 0
+        seen = 0
         path = f"/playlists/{playlist_id}/items"
         fallback = f"/playlists/{playlist_id}/tracks"
         while True:
-            step = 100 if limit is None else min(100, limit - len(out))
+            step = 100 if limit is None else min(100, limit - seen)
             if step <= 0:
                 break
             try:
-                data = await self.get(path, limit=step, offset=offset, additional_types="track")
+                data = await self.get(path, limit=step, offset=offset, additional_types="track", market=market)
             except SpotifyError as exc:
                 if exc.status in (403, 404) and path != fallback:
                     path = fallback
@@ -256,11 +259,29 @@ class Spotify:
             for entry in items:
                 track = track_of(entry)
                 if track:
-                    out.append(track)
+                    out.append({"track": track, "added_at": (entry or {}).get("added_at")})
+                else:
+                    skipped += 1
+            seen += len(items)
             if not items or not data.get("next"):
                 break
             offset += len(items)
-        return out
+        return out, skipped
+
+    async def playlist_items(self, playlist_id: str, limit: int | None = None, offset: int = 0) -> list[dict]:
+        entries, _ = await self.playlist_entries(playlist_id, limit=limit, offset=offset)
+        return [e["track"] for e in entries]
+
+    async def replace_playlist(self, playlist_id: str, uris: list[str]):
+        first, rest = uris[:100], uris[100:]
+        try:
+            await self.put(f"/playlists/{playlist_id}/items", {"uris": first})
+        except SpotifyError as exc:
+            if exc.status not in (403, 405):
+                raise
+            await self.put(f"/playlists/{playlist_id}/tracks", {"uris": first})
+        if rest:
+            await self.add_to_playlist(playlist_id, rest)
 
     async def create_playlist(self, name: str, description: str = "", public: bool = False) -> dict:
         body = {"name": name[:100] or "MultiSpot", "public": public, "description": description[:300]}
